@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "tickets": {
+      "type": "stdio",
+      "command": "go",
+      "args": ["run", "./04-mcp/solution/server"],
+      "env": {
+        "TICKETS_API_TOKEN": "${TICKETS_API_TOKEN:-dev-token}"
+      }
+    }
+  }
+}

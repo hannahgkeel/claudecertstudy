@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+
+# Go binaries built in the repo root (e.g. `go build ./01-agentic-loop/exercise`)
+/exercise
+/solution
+/bridge
+/batch
+/server
+
+# Local Claude Code / MCP config that may hold personal settings or tokens
+.claude/settings.local.json
+**/.claude/settings.local.json
+.mcp.json
+
+# Secrets
+.env
+.env.*
