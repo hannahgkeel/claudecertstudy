@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 
 	"claudecertstudy/07-context-reliability/backend"
 	"claudecertstudy/internal/claude"
@@ -23,16 +24,80 @@ import (
 // status, delivery date, customer ID) in Go, and render them as a
 // <case_facts> block at the start of EVERY new user message.
 // Why not rely on the conversation history, or on a summary of it?
-type caseFacts struct{}
+type caseFacts struct {
+	CustomerID string
+	Orders     map[string]orderSummary // keyed by order ID
+}
 
-func (c *caseFacts) render() string { return "" }
+type trackingEvent struct {
+	TS   string `json:"ts"`
+	Code string `json:"code"`
+	Note string `json:"note"`
+}
+
+type orderSummary struct {
+	OrderID        string         `json:"order_id"`
+	CustomerID     string         `json:"customer_id"`
+	Item           string         `json:"item"`
+	Total          float64        `json:"order_total"`
+	Status         string         `json:"status"`
+	DeliveredOn    *string        `json:"delivered_on"` // null while in transit
+	Carrier        string         `json:"carrier"`
+	TrackingNumber string         `json:"tracking_number"`
+	LatestEvent    *trackingEvent `json:"latest_event,omitempty"`
+}
+
+func (c *caseFacts) render() string {
+	if c == nil || len(c.Orders) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	sb.WriteString("<case_facts>\n")
+	sb.WriteString("CustomerID: " + c.CustomerID + "\n")
+	for _, o := range c.Orders {
+		sb.WriteString("OrderID: " + o.OrderID + "\n")
+		sb.WriteString("OrderItem: " + o.Item + "\n")
+		sb.WriteString("OrderTotal: " + fmt.Sprintf("%.2f", o.Total) + "\n")
+		sb.WriteString("OrderStatus: " + o.Status + "\n")
+		delivered := "not yet delivered"
+		if o.DeliveredOn != nil {
+			delivered = *o.DeliveredOn
+		}
+		sb.WriteString("DeliveryDate: " + delivered + "\n")
+	}
+	sb.WriteString("</case_facts>\n")
+	return sb.String()
+}
 
 // TODO(2): The order API returns ~40 fields and 18 tracking events. Trim it to
 // what the agent needs (order_id, item, total, status, delivered_on, carrier,
 // tracking number, latest event) before it goes into history.
 // Compare the "chars raw / chars sent" numbers before and after.
-func trimOrder(raw string) string {
-	return raw
+func trimOrder(raw string) (orderSummary, string, error) {
+	// The backend's not-found reply is tiny, so pass it through as-is.
+	var e struct {
+		Error string `json:"error"`
+	}
+	if json.Unmarshal([]byte(raw), &e) == nil && e.Error != "" {
+		return orderSummary{}, raw, fmt.Errorf("lookup failed: %s", e.Error)
+	}
+
+	// Decoding into a tagged struct keeps only those fields; the other ~30 are dropped.
+	var o orderSummary
+	if err := json.Unmarshal([]byte(raw), &o); err != nil {
+		return orderSummary{}, `{"error":"unparseable_order_response"}`, err
+	}
+	// tracking_events doesn't map onto a field directly. Keep only the latest one.
+	var ev struct {
+		TrackingEvents []trackingEvent `json:"tracking_events"`
+	}
+	_ = json.Unmarshal([]byte(raw), &ev)
+	if n := len(ev.TrackingEvents); n > 0 {
+		o.LatestEvent = &ev.TrackingEvents[n-1]
+	}
+
+	b, _ := json.Marshal(o)
+	return o, string(b), nil
 }
 
 // TODO(3): Escalation. Give escalate_to_human a "reason" enum
@@ -51,10 +116,13 @@ var tools = []anthropic.ToolParam{
 	},
 	{
 		Name:        "escalate_to_human",
-		Description: anthropic.String("Escalate to a human if the customer is upset or you're not confident."),
+		Description: anthropic.String("Escalate to a human agent. Use ONLY when: 1) the customer explicitly requests a human, 2) the policy doesn't cover the situation, or 3) you've tried twice and made no progress. Do NOT escalate just because the customer is frustrated or angry."),
 		InputSchema: anthropic.ToolInputSchemaParam{
-			Properties: map[string]any{"summary": map[string]any{"type": "string"}},
-			Required:   []string{"summary"},
+			Properties: map[string]any{
+				"reason":  map[string]any{"type": "string", "enum": []string{"customer_request", "policy_gap", "no_progress"}},
+				"summary": map[string]any{"type": "string", "description": "Customer, orders, facts, what was offered, and what is still open"},
+			},
+			Required: []string{"reason", "summary"},
 		},
 	},
 }
@@ -78,7 +146,8 @@ func main() {
 	// second request on.
 	// Question: what would happen to the cache if you put time.Now() in the system prompt?
 	system := []anthropic.TextBlockParam{{
-		Text: "You are a support agent. Follow this policy exactly.\n\n" + backend.PolicyDocument(),
+		Text:         "You are a support agent. Follow this policy exactly.\n\n" + backend.PolicyDocument(),
+		CacheControl: anthropic.NewCacheControlEphemeralParam(),
 	}}
 
 	userTurns := []string{
@@ -89,7 +158,7 @@ func main() {
 		"I'd like to talk to a real person please.",
 	}
 
-	facts := &caseFacts{}
+	facts := &caseFacts{Orders: map[string]orderSummary{}}
 	var messages []anthropic.MessageParam
 
 	for turn, text := range userTurns {
@@ -103,11 +172,12 @@ func main() {
 
 		for step := 0; step < 6; step++ {
 			resp, err := client.Messages.New(ctx, anthropic.MessageNewParams{
-				Model:     claude.Model,
-				MaxTokens: 16000,
-				System:    system,
-				Tools:     toolUnion(),
-				Messages:  messages,
+				Model:        claude.Model,
+				MaxTokens:    16000,
+				System:       system,
+				Tools:        toolUnion(),
+				Messages:     messages,
+				CacheControl: anthropic.NewCacheControlEphemeralParam(), // also cache the growing history
 			})
 			if err != nil {
 				log.Fatal(err)
@@ -133,10 +203,13 @@ func main() {
 					}
 					_ = json.Unmarshal([]byte(tu.JSON.Input.Raw()), &in)
 					raw := backend.LookupOrderRaw(in.OrderID)
-					out := trimOrder(raw)
-					// TODO(1b): record this order in facts.
+					o, out, err := trimOrder(raw)
+					if err == nil {
+						facts.Orders[o.OrderID] = o
+						facts.CustomerID = o.CustomerID
+					}
 					fmt.Printf("   -> lookup_order %s (%d chars raw, %d sent)\n", in.OrderID, len(raw), len(out))
-					results = append(results, anthropic.NewToolResultBlock(tu.ID, out, false))
+					results = append(results, anthropic.NewToolResultBlock(tu.ID, out, err != nil))
 				case "escalate_to_human":
 					fmt.Println("   -> ESCALATED:", tu.JSON.Input.Raw())
 					results = append(results, anthropic.NewToolResultBlock(tu.ID, `{"ticket":"H-3391","eta_minutes":10}`, false))
