@@ -16,3 +16,5 @@
 # Secrets
 .env
 .env.*
+# Compiled hook binaries (build with: go build -o .claude/hooks/bin/guard ./.claude/hooks/guard)
+**/.claude/hooks/bin/
