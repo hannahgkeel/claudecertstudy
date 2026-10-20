@@ -19,3 +19,7 @@ On current models (Opus 5.5, Sonnet 5.5, Fable 5.1):
 - Extended thinking uses adaptive thinking plus `effort`, not `budget_tokens`.
 
 Keep new or edited code consistent with these. The READMEs mention the textbook answers only for exam context.
+
+## Mock exams (`mock-exams/`)
+
+Static HTML/JS practice exams for CCDV-F (no build step). Questions live in `mock-exams/data/exam{1,2,3}.js`; see `mock-exams/README.md` for the item format. When the user pastes "Copy results for Claude" output, look up each missed question by its ID (e.g. `e2-31`) in the data files and coach on the concept, not just the letter. Question and option order are shuffled deterministically by `app.js`, so letters in the pasted results refer to the displayed order, not the order in the data file. Each exam must keep its blueprint domain counts (8/17/2/1/9/6/4/6).
