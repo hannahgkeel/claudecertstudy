@@ -4,6 +4,17 @@ Hands-on exercises for each area of the Claude architecture / developer foundati
 
 > Check the module list against the official exam guide. Domain names and weights can change between versions.
 
+## Quick start: mock exams
+
+Three timed CCDV-F practice exams live in [`mock-exams/`](mock-exams/). They're static HTML, so you don't need Go, an API key or a server:
+
+```bash
+git clone <repo-url>
+open claudecertstudy/mock-exams/index.html   # macOS; use xdg-open on Linux, start on Windows
+```
+
+Progress is saved in your browser. If your browser blocks local files, or the **Copy results for Claude** button doesn't copy, serve the folder instead with `python3 -m http.server -d mock-exams 8000` and open `http://localhost:8000`. See [`mock-exams/README.md`](mock-exams/README.md) for the format and scoring.
+
 ## Setup
 
 ```bash
