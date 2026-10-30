@@ -1,21 +1,30 @@
 # Claude certification study lab (Go)
 
-Hands-on exercises for each area of the Claude architecture / developer foundations exam. Each module has a runnable **exercise** with TODOs, a **solution**, and a **README** with the concepts and exam-style questions (answers are collapsed).
+Study material for two Claude certifications, one folder each. Every module has a runnable **exercise** with TODOs, a **solution**, and a **README** with concepts and exam-style questions (answers are collapsed). Each certification also has three timed mock exams.
 
-> Check the module list against the official exam guide. Domain names and weights can change between versions.
+| Certification | Folder | Mock exams |
+|---|---|---|
+| Claude Certified Developer – Foundations (CCDV-F) | [`developer-foundations/`](developer-foundations/) | 3 × 53 questions |
+| Claude Certified Architect – Professional (CCAR-P) | [`architect-professional/`](architect-professional/) | 3 × 63 questions |
+
+Both use one shared exam engine in [`shared/mock-exam/`](shared/mock-exam/) and the shared Claude client in [`internal/claude/`](internal/claude/).
+
+> These are unofficial study materials built from the public exam guides, not exam content.
 
 ## Quick start: mock exams
 
-Three timed CCDV-F practice exams live in [`mock-exams/`](mock-exams/). They're static HTML, so you don't need Go, an API key or a server:
+The mock exams are static HTML, so you don't need Go, an API key or a server:
 
 ```bash
 git clone <repo-url>
-open claudecertstudy/mock-exams/index.html   # macOS; use xdg-open on Linux, start on Windows
+open claudecertstudy/developer-foundations/mock-exams/index.html     # CCDV-F
+open claudecertstudy/architect-professional/mock-exams/index.html    # CCAR-P
+# macOS shown; use xdg-open on Linux, start on Windows
 ```
 
-Progress is saved in your browser. If your browser blocks local files, or the **Copy results for Claude** button doesn't copy, serve the folder instead with `python3 -m http.server -d mock-exams 8000` and open `http://localhost:8000`. See [`mock-exams/README.md`](mock-exams/README.md) for the format and scoring.
+Progress is saved in your browser, separately for each certification. If your browser blocks local files, or the **Copy results for Claude** button doesn't copy, serve the repository instead with `python3 -m http.server 8000` from the repo root and open `http://localhost:8000/architect-professional/mock-exams/` (serve from the root, because both exam pages load the shared engine from `../../shared/`).
 
-## Setup
+## Setup for the code modules
 
 ```bash
 export ANTHROPIC_API_KEY=sk-ant-...   # from console.anthropic.com
@@ -23,29 +32,7 @@ go build ./...                       # everything should compile
 go test ./...                        # offline tests (no API key needed)
 ```
 
-All exercises use `claude-opus-5-5` (set in `internal/claude/claude.go`). For cheaper practice runs, switch to `claude-sonnet-5-5` or `claude-haiku-4-5`. A full run of every solution costs well under a few dollars.
-
-## Modules → exam domains
-
-| # | Module | Domain | Main skills |
-|---|---|---|---|
-| 01 | [Agentic loop](01-agentic-loop/) | Agentic architecture & orchestration | `stop_reason` loop, tool results, **policy enforced in code, not the prompt** |
-| 02 | [Multi-agent](02-multi-agent/) | Agentic architecture & orchestration | Coordinator/subagents, explicit context passing, parallel fan-out, error propagation, provenance |
-| 03 | [Tool design](03-tool-design/) | Tool design & MCP | Descriptions that route correctly, structured errors, strict schemas, `tool_choice`, a tool-selection eval |
-| 04 | [MCP](04-mcp/) | Tool design & MCP | Go MCP server (tools + resource), MCP→Claude bridge, `.mcp.json` scopes and env vars |
-| 05 | [Claude Code](05-claude-code/) | Claude Code configuration & workflows | CLAUDE.md hierarchy, path rules, skills, subagents, **Go PreToolUse hook**, CI with `claude -p` |
-| 06 | [Structured output](06-structured-output/) | Prompt engineering & structured output | JSON schema output, nullable fields, few-shot, validate→retry, Batches API |
-| 07 | [Context & reliability](07-context-reliability/) | Context management & reliability | Case facts, trimming tool output, escalation criteria, prompt caching |
-
-**Suggested order:** 01 → 03 → 02 → 06 → 07 → 04 → 05. Agentic architecture is the most heavily weighted domain, so go back over 01 and 02 before the exam.
-
-## How to use each module
-
-1. Read the module README.
-2. Run the **exercise** as-is and notice what goes wrong.
-3. Fill in the TODOs and run it again.
-4. Diff against the solution: `diff -u 01-agentic-loop/exercise/main.go 01-agentic-loop/solution/main.go`
-5. Answer the exam-style questions *before* expanding the answers.
+All exercises use `claude-opus-5-5` (set in `internal/claude/claude.go`). For cheaper practice runs, switch to `claude-sonnet-5-5` or `claude-haiku-4-5`. A full run of every solution costs well under a few dollars. Run commands from the repository root.
 
 ## Ideas that recur across the exam
 

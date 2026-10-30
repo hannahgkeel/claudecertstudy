@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": ["Bash(*)", "Read(**)", "WebFetch"]
+  },
+  "env": {
+    "ANTHROPIC_API_KEY": "sk-ant-PASTE-TEAM-KEY-HERE"
+  }
+}

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CCAR-P Mock Exams</title>
+<meta name="description" content="Three timed 63-question practice exams for Claude Certified Architect – Professional, with score reports and answer guides.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="../../shared/mock-exam/exam.css">
+
+<div id="app"></div>
+
+<script>
+window.MOCK = {
+  code: 'CCAR-P',
+  name: 'Claude Certified Architect – Professional',
+  guide: 'v1.0, July 2026',
+  storageKey: 'ccarp-mock-v1',
+  seed: 'ccarp-exam-',
+  items: 63,
+  minutes: 120,
+  bands: { strong: 54, likely: 48, borderline: 44 },
+  studyTip: 'domains 3 and 1 together are over a third of the exam.',
+  domains: {
+    1: { name: 'Solution Design & Architecture', w: 17 },
+    2: { name: 'Claude Models, Prompting & Context Engineering', w: 13 },
+    3: { name: 'Integration', w: 19 },
+    4: { name: 'Evaluation, Testing & Optimization', w: 16 },
+    5: { name: 'Governance, Safety & Risk Management', w: 14 },
+    6: { name: 'Stakeholder Communication & Lifecycle Management', w: 14 },
+    7: { name: 'Developer Productivity & Operational Enablement', w: 7 }
+  },
+  exams: { 1: [], 2: [], 3: [] }
+};
+</script>
+<script src="data/exam1.js"></script>
+<script src="data/exam2.js"></script>
+<script src="data/exam3.js"></script>
+<script src="../../shared/mock-exam/app.js"></script>
