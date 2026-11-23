@@ -176,30 +176,30 @@ MOCK.certs.ccarp.exams[1].push(
 {
   "id": "p1-07",
   "d": 1,
-  "s": "Design multi-agent systems and orchestration strategies",
-  "stem": "A logistics company proposes five agents for shipment exception handling: an intake agent, a classifier agent, a lookup agent, a drafting agent and a review agent, each passing its output to the next. Exceptions follow one of four known patterns. Latency is 40 seconds and errors are hard to trace. What should the architect recommend?",
+  "s": "Design end-to-end architectures (input → processing → output → feedback loops)",
+  "stem": "A partner's project lead summarizes a proposal for a bank's internal assistant: 'We've settled on AWS Bedrock because of our cloud commitment and compliance posture, so the entry point and the SDK question are already answered.' How should the architect respond?",
   "o": [
     [
-      "Run the five agents in parallel instead of in sequence to cut latency.",
-      "The stages depend on each other's output, so they can't run in parallel, and it doesn't address the unnecessary complexity."
+      "Bedrock settles only the delivery route; the entry point and the build-time interface are separate decisions still to be made.",
+      "Correct. Entry points are chosen for the user and the work, build-time interfaces for the engineering team, and delivery routes for cloud commitments and compliance. A decision in one layer rarely dictates the others, so each layer needs its own answer."
     ],
     [
-      "Add a sixth supervisor agent that watches the other five and logs their reasoning for tracing.",
-      "This adds yet another model hop and more cost to fix a problem created by having too many agents."
+      "The delivery route determines the other two layers, so choosing Bedrock automatically selects the SDK and the entry point.",
+      "The layers aren't a cascade. Bedrock says where API traffic terminates and whose infrastructure runs the request. It doesn't say whether staff use Claude.ai, Claude Code or a custom app, or how engineers program against Claude."
     ],
     [
-      "Give each of the five agents a smaller, faster model to cut per-hop latency, keeping the design and the hand-offs as they are.",
-      "Faster hops help a little, but the architecture is still more complex than the problem needs and still hard to trace."
+      "The three layers are alternatives, so one choice is enough; add another only if Bedrock turns out to be insufficient for the use case.",
+      "Every deployment involves all three layers. Treating them as alternatives is the most common source of muddled architecture conversations."
     ],
     [
-      "Replace it with a workflow: classify into the four patterns, do lookups in code, then draft in one call.",
-      "Correct. A linear chain of agents for a known set of patterns is multi-agent overhead with no benefit. A workflow with code-driven lookups is faster, cheaper and traceable."
+      "The entry point should be settled first, because the delivery route and the SDK follow from what the users interact with.",
+      "Reversed. Compliance and cloud constraints can eliminate delivery routes before the other decisions are made, and an entry point is chosen for the user and the work, not to dictate the route."
     ]
   ],
   "a": [
-    3
+    0
   ],
-  "why": "Multi-agent systems earn their cost on parallelizable, open-ended or context-heavy work. A sequential hand-off between agents for a known set of patterns is a workflow in disguise, with extra latency and failure points."
+  "why": "Entry points, build-time interfaces and delivery routes are three layers with three different decisions and stakeholders. Confusing them muddles the conversation and leaves a layer undecided. Naming each layer separately, and recording the compliance-driven route choice for its own reasons, is the architect's job."
 },
 {
   "id": "p1-08",
@@ -406,34 +406,30 @@ MOCK.certs.ccarp.exams[1].push(
   "id": "p1-15",
   "d": 2,
   "s": "Optimize context windows and manage token usage",
-  "stem": "A government contracting office runs a long-lived agent that drafts responses to vendor questions across a multi-week procurement. Sessions accumulate hundreds of tool results (regulation lookups, prior answers), and quality degrades late in sessions while costs climb. Which TWO changes address this?",
+  "stem": "A claims-summarization service has two recurring failures. Some requests that bundle dozens of PDFs are rejected with an error before any output is produced. Other long reports come back cut off with a `model_context_window_exceeded` stop reason. Which TWO changes address the causes?",
   "o": [
     [
-      "Keep key decisions in an external memory file the agent re-reads.",
-      "Correct. Persisting the important state outside the context window lets old turns be dropped or compacted without losing what matters."
+      "Retry both kinds of failure with exponential backoff, since the errors are transient.",
+      "These failures are deterministic. An oversized request will be rejected again, and a generation that hits the window ceiling will stop at the same place."
     ],
     [
-      "Move to a model with a larger context window so nothing has to be dropped.",
-      "More room delays the problem and raises costs; attention still degrades over a long, noisy context."
+      "Check the `usage` field on every response and handle the `model_context_window_exceeded` stop reason by continuing in a fresh call with a summary of the work so far.",
+      "Correct. The prompt fit but generation reached the window ceiling, so the application has to notice the stop reason and carry the work forward itself."
     ],
     [
-      "Add an instruction asking the agent to ignore old tool results.",
-      "The tokens are still sent, still billed, and still compete for attention."
+      "Raise `max_tokens` above the window size so long reports can't be truncated.",
+      "The context window is a hard edge. A larger output limit can't extend the window, and the model has no access to anything beyond it."
     ],
     [
-      "Restart a fresh session every morning with no carried-over state, so each day begins with an empty, fast context.",
-      "This loses the decisions and context that make answers consistent across the procurement."
-    ],
-    [
-      "Clear used tool results from context, keeping short notes.",
-      "Correct. Stale tool output is the bulk of context growth. Clearing it (context editing) keeps the working context focused and cheaper."
+      "Count tokens with the token-counting API before sending, and chunk or trim bundles that would exceed the model's limit.",
+      "Correct. An oversized request is rejected before generation (a 400 for too many tokens, a 413 for too many bytes), so size has to be checked and the input split before it is sent."
     ]
   ],
   "a": [
-    0,
-    4
+    1,
+    3
   ],
-  "why": "Manage long-running contexts actively: remove what is no longer needed (context editing, compaction) and keep durable state in external memory. A bigger window just postpones degradation."
+  "why": "Two different errors happen at the context window edge. An oversized request is rejected before generation, and the fix is to count tokens ahead of time and chunk or trim. A prompt that fits but whose generation runs into the ceiling stops early with `model_context_window_exceeded`, and the fix is to watch `usage` and the stop reason and manage continuity. Retries and a bigger `max_tokens` address neither."
 },
 {
   "id": "p1-16",
@@ -639,30 +635,30 @@ MOCK.certs.ccarp.exams[1].push(
 {
   "id": "p1-23",
   "d": 3,
-  "s": "Apply retrieval strategies matched to data shape and query pattern",
-  "stem": "An auto parts distributor's support assistant gets two kinds of queries: exact part numbers like 'BRK-4471-A' and natural-language questions like 'pads that fit a 2019 pickup with heavy towing'. Pure vector search handles the second well but often misses exact part numbers. What retrieval strategy fits?",
+  "s": "Evaluate connection protocols and select the appropriate integration mechanism (MCP, API/CLI, agent-to-agent)",
+  "stem": "A claims vendor is building a feature inside its own product in which Claude works across several turns, calling tools until a claim is triaged. A compliance rule requires that after every tool result the application runs its own check and can veto the next step. Which build-time interface fits?",
   "o": [
     [
-      "Re-embed the whole catalog with a larger, domain-tuned embedding model so part numbers land closer to the queries that mention them.",
-      "Embeddings blur exact strings regardless of size; part numbers need lexical matching."
+      "The Agent SDK, so the managed loop handles iteration, tool execution and termination.",
+      "The managed loop gives up fine-grained control over each iteration step. A veto between turns needs logic inside the loop."
     ],
     [
-      "Ask Claude to guess the part number from the description before searching.",
-      "This adds a call and invents identifiers rather than retrieving them."
+      "A raw API loop that the team builds, so the compliance check can run between turns.",
+      "Correct. When a use case needs custom logic between turns, the raw API loop gives that control, at the cost of building and maintaining the loop yourself."
     ],
     [
-      "Increase the number of vector results returned to 100.",
-      "The exact part may still rank poorly, and context fills with noise."
+      "Claude Code, since it already runs multi-turn tool use with permissions.",
+      "Claude Code is designed for developer workflows, not as a backend for a product used by many people."
     ],
     [
-      "Hybrid retrieval: exact or keyword match for identifiers plus vector search, then rerank.",
-      "Correct. Exact identifiers are a lexical problem and descriptive questions are a semantic one; hybrid search covers both shapes of query."
+      "An MCP server for the claims tools, which then runs the loop.",
+      "MCP is a protocol for connecting tools and internal services. It standardizes the integration layer but doesn't provide the loop or the per-turn veto."
     ]
   ],
   "a": [
-    3
+    1
   ],
-  "why": "Match retrieval to data shape and query pattern: lexical search for exact identifiers, semantic search for meaning, often combined with reranking. Structured data may be better served by direct lookups."
+  "why": "The Agent SDK suits multi-turn work inside your product when you don't need to control each iteration. When custom logic must run between turns, a loop on the raw API gives that control, and you own building and maintaining it. Claude Code isn't a backend for multi-user products, and MCP is a tool-integration protocol rather than an orchestration loop."
 },
 {
   "id": "p1-24",
@@ -925,57 +921,57 @@ MOCK.certs.ccarp.exams[1].push(
   "id": "p1-33",
   "d": 4,
   "s": "Design evaluation datasets and test frameworks using mixed methodologies",
-  "stem": "A legal-tech firm's contract summarizer needs an eval suite. Some checks are exact (did it extract the governing-law clause and the termination date?), others are judgment calls (is the risk summary accurate and complete?). Lawyers' time is scarce. What framework fits?",
+  "stem": "A benefits administrator plans to build a claims-explanation assistant and 'add evals once the prototype works'. Six months later the prompt has been revised many times and nobody can say whether the latest version is better than the first. What should the architect have established at the start?",
   "o": [
     [
-      "Measure only ROUGE overlap against reference summaries.",
-      "Surface-overlap metrics correlate poorly with legal accuracy and completeness."
+      "A weekly review in which stakeholders read a few sampled conversations together and say whether the assistant feels better or worse.",
+      "Impressions from a handful of conversations are not a gate. They can't tell you whether a change made the system better across the cases that matter."
     ],
     [
-      "Code checks for exact fields, a rubric-based LLM grader for summaries, and lawyer calibration samples.",
-      "Correct. Mixed methods use the cheapest reliable grader for each kind of check, and human calibration keeps the LLM grader honest."
+      "A larger model for the prototype, so quality is high enough that comparing prompt versions isn't necessary, with a plan to revisit later.",
+      "A stronger model doesn't remove the need to define better, and a later model swap would still be unmeasured."
     ],
     [
-      "Have lawyers grade every output on every run.",
-      "Most accurate per item, but too slow and expensive to run on every change."
+      "Write the evals first, keep a golden dataset current, and use the eval as the gate for every prompt revision or model swap.",
+      "Correct. Evals work as acceptance criteria: written first, kept current, and used to gate every change, so the comparison between versions exists from the beginning."
     ],
     [
-      "Use one LLM grader with a detailed rubric for everything, including the exact fields, so all scores come from a single consistent method.",
-      "Exact checks are cheaper and more reliable in code; an uncalibrated LLM grader may drift from expert judgment."
-    ]
-  ],
-  "a": [
-    1
-  ],
-  "why": "Combine code-based grading for objective checks, model-based grading with clear rubrics for subjective quality, and human review to calibrate. Build datasets that include edge cases from real usage."
-},
-{
-  "id": "p1-34",
-  "d": 4,
-  "s": "Conduct A/B testing and iterative improvements",
-  "stem": "A streaming service has a new recommendation-explanation prompt that scored better on offline evals. Product wants to switch 100% of traffic tomorrow. What should the architect propose?",
-  "o": [
-    [
-      "Switch to the new prompt on weekends only and compare with weekdays.",
-      "Day-of-week effects confound the comparison."
-    ],
-    [
-      "Run both prompts and let users pick which explanation they like better.",
-      "This changes the experience being measured and introduces selection bias."
-    ],
-    [
-      "A/B test with pre-agreed metrics and sample size.",
-      "Correct. Offline gains don't always transfer. A controlled online test with metrics and stopping rules chosen in advance gives a trustworthy decision."
-    ],
-    [
-      "Switch 100% tomorrow, since offline evals already show it's better, and roll back if complaints rise in the first week.",
-      "This skips validation on real users and makes it impossible to attribute changes to the prompt."
+      "A production monitoring dashboard, because live traffic will show which version works best.",
+      "Monitoring shows what happens after release. It doesn't decide, before a change ships, whether the change is an improvement."
     ]
   ],
   "a": [
     2
   ],
-  "why": "Validate changes online with proper A/B tests: random assignment, metrics fixed in advance (including guardrails), sufficient sample size, and a decision rule. Then iterate."
+  "why": "Treat evals as acceptance criteria. Write the eval suite before the production code, keep the golden dataset current with every system change, and use the eval as the gate for each model swap or prompt revision."
+},
+{
+  "id": "p1-34",
+  "d": 4,
+  "s": "Conduct A/B testing and iterative improvements",
+  "stem": "A health insurer's team wants to validate a new model version for its member-claims assistant. The deployment is regulated, a single wrong answer to a member could breach policy, and traffic is low outside open enrollment. How should the architect validate the change?",
+  "o": [
+    [
+      "A live A/B test with half of members on the new version, since only real users show whether the answers are accepted and helpful in practice.",
+      "Live exposure to an unvalidated change may not be permissible in a regulated deployment, and low traffic wouldn't reach a meaningful sample in a reasonable window."
+    ],
+    [
+      "Shadow testing: run the new version on real requests without showing members its output, scored against an offline rubric or golden answers.",
+      "Correct. When one bad output carries too much risk, or traffic is too low for a live split, shadow testing is often the only acceptable way to validate. The cost is the loss of downstream user signals."
+    ],
+    [
+      "Ship it to all members and watch for support complaints during the first week.",
+      "This exposes every member to an unvalidated change, which is the risk the regulated setting rules out."
+    ],
+    [
+      "Rely on the vendor's published benchmarks for the new version instead of testing on the insurer's own traffic.",
+      "Benchmarks don't measure this assistant on this insurer's requests, and they provide no acceptance evidence for the regulator."
+    ]
+  ],
+  "a": [
+    1
+  ],
+  "why": "Choose between a live A/B test and shadow testing by how much risk the deployment can carry and how much traffic it sees. Live A/B suits bounded exposure and enough volume, and gives real user signals. Shadow testing suits high-risk or low-traffic cases, at the cost of scoring against an offline rubric or golden answers."
 },
 {
   "id": "p1-35",
@@ -1238,29 +1234,29 @@ MOCK.certs.ccarp.exams[1].push(
   "id": "p1-44",
   "d": 5,
   "s": "Apply human-in-the-loop validation strategies",
-  "stem": "An insurer's claims agent drafts settlement decisions. Leadership wants to avoid both rubber-stamping (reviewers approving everything) and reviewing every claim. How should human review be designed?",
+  "stem": "An insurer's claims assistant drafts about 2,000 settlement decisions a day. Reviewers can handle roughly 150 a day. Leadership wants to avoid both reviewers who approve everything without reading and serious errors reaching claimants. Which routing rule meets both goals?",
   "o": [
     [
-      "Route by risk: high-value, low-confidence, exception and denial cases go to adjusters; the rest is auto-processed with random audit sampling.",
-      "Correct. Routing by consequence, reversibility and confidence puts scarce reviewer attention where errors cost most, and sampling checks the automated path."
+      "Send every draft to a reviewer, since reviewing everything is the safest option and leaves nothing to chance in the claims process.",
+      "Routing everything floods the queue until reviewers click through without reading, which is the consent fatigue the rule is meant to avoid."
     ],
     [
-      "Send every decision to an adjuster for approval.",
-      "Reviewing everything leads to fatigue and rubber-stamping, and erodes the efficiency gain."
+      "Send decisions below a high confidence threshold to review, whatever their stakes, so that anything the model is unsure about is reviewed.",
+      "A confidence-only rule routes many harmless drafts and still doesn't distinguish a reversible, low-cost error from an irreversible, costly one."
     ],
     [
-      "Auto-process everything and let customers appeal.",
-      "This pushes error detection onto customers, including for denials and large claims."
+      "Review when confidence is low and the decision is irreversible or high-cost, with the inputs and reason; let the rest through.",
+      "Correct. Routing by stakes uses confidence, reversibility and the cost of a wrong answer together, so high-stakes, low-confidence decisions get a person before they take effect and the queue stays within the reviewer ceiling."
     ],
     [
-      "Have a second, larger model review every decision and escalate only the ones where the two models disagree.",
-      "Model review can help triage but doesn't replace accountable human judgment on consequential decisions."
+      "Set the confidence threshold low enough that the queue stays small, and review only what falls below it.",
+      "A threshold tuned to the queue size rather than to stakes leaves high-cost errors unreviewed whenever the model is confident and wrong."
     ]
   ],
   "a": [
-    0
+    2
   ],
-  "why": "Design human-in-the-loop by risk: route on confidence, impact and reversibility, and audit the automated path with sampling to catch drift."
+  "why": "Route review by stakes, not by volume. Confidence, reversibility and the cost of a wrong answer decide which decisions a person reviews before they take effect. Send high-stakes, low-confidence ones to a human with the inputs and the reason for the flag, and let the rest through. Routing everything leads to consent fatigue."
 },
 {
   "id": "p1-45",
@@ -1639,30 +1635,30 @@ MOCK.certs.ccarp.exams[1].push(
 {
   "id": "p1-58",
   "d": 6,
-  "s": "Support lifecycle phases (discovery, design, handoff, monitoring, iteration)",
-  "stem": "A retail bank's pilot of a Claude-powered branch assistant succeeded. Leadership wants to roll it out to 600 branches next month. What should the architect plan for the scale-up phase?",
+  "s": "Communicate architectural decisions and trade-offs",
+  "stem": "An architect presents two designs for a hospital pharmacy's refill-review assistant. Design 1 adds a pharmacist verification step and launches in eight weeks. Design 2 is a single Claude call with no verification step that launches in four. The slide for Design 2 says: 'Gains: launch four weeks sooner. Gives up: pharmacist verification of each recommendation.' What single element is missing from that presentation?",
   "o": [
     [
-      "Re-run the pilot in a different branch for another six months.",
-      "Overly cautious; staged rollout gets the same learning with value delivered sooner."
+      "A clearer statement of what Design 2 gains, such as the launch date, the cost and the number of staff hours it would save the pharmacy.",
+      "The gain is already stated and is easy for the sponsor to see. The weaker part of the presentation is what the choice would cost to undo."
     ],
     [
-      "Hand the system to branch IT with the pilot documentation and close the project, since the pilot has already proven it works.",
-      "Monitoring and iteration are part of the lifecycle; handing off without them leaves no one watching quality."
+      "The cost of adding the verification step later, once workflows and expectations have come to depend on the faster launch.",
+      "Correct. A tradeoff presentation names what is gained, what is given up and the reversal cost, because the sponsor needs to know how hard the decision is to undo."
     ],
     [
-      "Staged rollout with gates, monitoring and rollback.",
-      "Correct. Scaling is a lifecycle phase with its own risks; staging with criteria, monitoring and rollback limits the blast radius."
+      "The model version the assistant would use at launch, together with a link to the vendor's documentation and release notes for that version.",
+      "The model name doesn't help the sponsor weigh the tradeoff between the two designs."
     ],
     [
-      "Roll out to all 600 branches at once to maximize impact.",
-      "A problem not seen in the pilot would hit every branch at once with no easy rollback."
+      "A recommendation that overrides the sponsor's preference for the earlier launch.",
+      "The sponsor needs the tradeoff in a form they can act on. The architect's job is to present options with their costs, not to preempt the decision."
     ]
   ],
   "a": [
-    2
+    1
   ],
-  "why": "Treat scale-up as its own phase: staged rollout with measurable gates, monitoring before exposure, feedback channels and a tested rollback."
+  "why": "Present each option as what it gains, what it gives up and what reversing it would cost. The reversal cost is the element that is easiest to omit and the one that lets a stakeholder judge a decision they might need to unwind."
 },
 {
   "id": "p1-59",
@@ -1696,29 +1692,29 @@ MOCK.certs.ccarp.exams[1].push(
   "id": "p1-60",
   "d": 7,
   "s": "Configure Claude tools and environments for teams (e.g., Claude Code)",
-  "stem": "An insurance company is rolling Claude Code out to 200 developers. Security requires that no one can read production credential files or run deployment commands from Claude Code, and each repo has its own build and test conventions. How should this be configured?",
+  "stem": "A bank wants a compliance-review procedure delivered as a Skill to every department. It must run identically everywhere, and the compliance team needs to update it centrally and roll it back if an update causes problems. Which distribution mechanism fits, and why?",
   "o": [
     [
-      "Deny rules for credential paths and deploy commands in managed settings users can't override, plus a checked-in CLAUDE.md per repo.",
-      "Correct. Organization-wide security rules belong in centrally managed policy; repo-specific guidance belongs in version-controlled project files that the whole team shares."
+      "An org-provisioned Skill, because it is available to every member of the organization without any further setup by the teams.",
+      "Availability to everyone is its strength, but it is the choice when no versioning or rollback is needed. Here controlled updates and rollback are the deciding requirement."
     ],
     [
-      "Publish a security guideline and require each developer to acknowledge it before receiving a Claude Code license.",
-      "Guidance isn't enforcement; security requirements need managed, non-overridable settings."
+      "A Claude Code project Skill, because it is versioned with the repository and travels with the code that each team already maintains.",
+      "A project Skill is scoped to one team's repository. It doesn't reach every department."
     ],
     [
-      "Have each developer write their own CLAUDE.md with the security rules.",
-      "Per-user files drift, and CLAUDE.md is guidance to the model, not a permission control."
+      "An API Skill, because it can be called programmatically with a pinned version.",
+      "API Skills suit capabilities that your own products call programmatically. This procedure has to reach people in their working tools."
     ],
     [
-      "Disable all shell commands in Claude Code.",
-      "Overly restrictive; it blocks builds and tests that developers need."
+      "A plugin assigned to groups or the organization, because it supports version-controlled updates and rollback.",
+      "Correct. A plugin gives scoped distribution with install preferences, version-controlled updates and rollback, which is what a procedure that must run identically and be centrally updatable requires."
     ]
   ],
   "a": [
-    0
+    3
   ],
-  "why": "Configure team environments in layers: managed policy for non-negotiable security controls, project-level CLAUDE.md and settings for shared conventions, and user settings for personal preferences."
+  "why": "Skills distribution is a choice of mechanism and a reason. Org-provisioned Skills give organization-wide availability without versioning or rollback. Plugins target a group or the organization with version-controlled updates and rollback. Project Skills are versioned with a repository and scoped to a team. API Skills are called programmatically with pinned versions. A correct mechanism paired with the wrong reason isn't a correct answer."
 },
 {
   "id": "p1-61",
@@ -1784,29 +1780,29 @@ MOCK.certs.ccarp.exams[1].push(
 {
   "id": "p1-63",
   "d": 7,
-  "s": "Configure Claude tools and environments for teams (e.g., Claude Code)",
-  "stem": "A platform team wants every repository's Claude Code sessions to run the linter automatically after each file edit and block edits to generated files. Developers keep forgetting when asked to do it in CLAUDE.md. What should the team use?",
+  "s": "Improve developer workflows using AI-assisted tooling",
+  "stem": "An insurer enabled Claude Code for 400 engineers on one day. Six weeks later, about 30 engineers use it heavily and most barely touch it. Each heavy user has a different personal setup, and no shared practice has formed. What should the architect do?",
   "o": [
     [
-      "Repeat the instruction in CLAUDE.md in bold.",
-      "Still an instruction the model may not follow every time; it isn't a guarantee."
+      "Set a mandatory usage target for every engineer, and report each team's numbers to leadership every week until the target is met.",
+      "A quota produces activity, not a proven workflow, and it does nothing about the differing setups."
     ],
     [
-      "Ask developers to run the linter before committing.",
-      "Relies on people remembering, which is what's failing."
+      "Schedule a company-wide training webinar on Claude Code and rely on engineers to apply it in their own repositories afterward.",
+      "A one-time session doesn't supply the local examples and first-line support that people need in their own repositories."
     ],
     [
-      "Create a Skill that describes how to run the linter and which paths are generated, so Claude loads it whenever it edits files.",
-      "A Skill provides knowledge on demand; it doesn't guarantee execution on every edit."
+      "Increase the number of seats, so every engineer has easy access whenever they decide they want to try it out.",
+      "Everyone already has access. Access without enablement is what produced the uneven pattern."
     ],
     [
-      "Hooks in shared project settings: lint after edits, block edits to generated files.",
-      "Correct. Hooks run deterministically on tool events, so the behavior doesn't depend on the model remembering an instruction."
+      "A champion per team proves the workflow and builds local examples first, then adoption is seeded batch by batch.",
+      "Correct. Lumpy adoption is avoided by spreading usage deliberately. Champions absorb early friction, build the examples and become first-line support, so the Architect isn't the only person who can answer questions."
     ]
   ],
   "a": [
     3
   ],
-  "why": "Use hooks for actions that must happen every time and CLAUDE.md for guidance. Deterministic automation beats instructions for required behavior."
+  "why": "Team adoption rarely succeeds as a single all-hands switch-on. Identify a champion per team or department, give them access first, let them prove the workflow, and then seed adoption batch by batch on a shared baseline. This avoids lumpy adoption, where a few heavy users never standardize the practice."
 }
 );

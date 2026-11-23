@@ -205,29 +205,29 @@ MOCK.certs.ccarp.exams[3].push(
   "id": "p3-08",
   "d": 1,
   "s": "Select appropriate architectural patterns (workflow, agentic, augmented LLM)",
-  "stem": "An automotive OEM screens dealer warranty claims. Each claim goes through the same checks: VIN coverage lookup, labor-time comparison against the standard operations table, and parts-return verification. Claude is needed only to read the technician's free-text cause and correction notes and judge whether they support the repair code. Which pattern fits?",
+  "stem": "A mortgage lender extracts income fields from scanned pay stubs and tax forms. The pipeline runs OCR, extracts fields against a schema, and passes everything straight to underwriting. Clean documents are fine, but handwritten and multi-page edge cases produce wrong values that nobody sees until underwriting. Which change addresses the cause?",
   "o": [
     [
-      "A coded workflow for the checks, with one Claude call to judge the technician notes.",
-      "Correct. The checks are fixed and deterministic, so code should run them. Claude is used only for the one step that needs language judgment."
+      "Move every extraction to a larger model so the edge cases are handled first time.",
+      "A bigger model may help on some edge cases, but it adds cost to every document and still leaves no check and no path for the ones it gets wrong."
     ],
     [
-      "An agent with lookup tools that decides which checks each claim needs.",
-      "Every claim needs the same checks, so letting a model choose them adds variance and the chance of skipped checks on financial decisions."
+      "Retry any extraction that scores below a threshold until the score passes, with no limit on the number of attempts per document.",
+      "Unbounded retries cost more, can loop forever on a document that is genuinely unreadable, and give no route to a person."
     ],
     [
-      "A multi-agent design with a separate agent per check and an orchestrator that combines their verdicts.",
-      "Three deterministic lookups don't need agents at all. This multiplies cost and failure points for no accuracy gain."
+      "Add an evaluator that validates against the schema, retries fixable items, and sends failures to a human exception queue.",
+      "Correct. An evaluator-optimizer arrangement checks first-pass output, and an exception path keeps low-confidence extractions from going through the same route as clean documents with no human gate."
     ],
     [
-      "A single Claude call given the whole claim and all reference tables, asked to perform every check.",
-      "Asking the model to do table lookups and arithmetic in context is less reliable and more expensive than doing them in code."
+      "Run each document through the same extraction twice and send the first result to underwriting unless the two passes disagree.",
+      "Two passes of the same extraction tend to repeat the same edge-case error, and agreement between them doesn't establish correctness or give the failures a place to go."
     ]
   ],
   "a": [
-    0
+    2
   ],
-  "why": "Use code for the predictable parts and Claude for the judgment parts. A workflow with an embedded model call is often the right pattern even when the task sounds complex."
+  "why": "A document processing pipeline with an evaluator-optimizer handles OCR, extraction against a schema, validation and exception routing. Projects go wrong when low-confidence extractions pass through the same path as clean documents with no human gate. Validation plus a bounded retry and a human exception queue is the tested pattern."
 },
 {
   "id": "p3-09",
@@ -466,30 +466,30 @@ MOCK.certs.ccarp.exams[3].push(
 {
   "id": "p3-17",
   "d": 2,
-  "s": "Apply prompt engineering techniques (zero-shot, few-shot, chain-of-thought)",
-  "stem": "An agronomy service uses Claude to diagnose crop problems from symptom descriptions, field history and photos. Simple cases are fine, but multi-factor cases (nutrient deficiency plus pest damage plus drought stress) are often misdiagnosed as a single cause. The team's draft config sets thinking.budget_tokens to 32,000. What should the architect recommend?",
+  "s": "Select appropriate Claude models based on trade-offs",
+  "stem": "A retailer's returns assistant runs on Sonnet 5.5 and meets its targets. A vendor presentation says Opus 5.5 is 'smarter', and finance asks the architect to switch next sprint. What should the architect require before approving the change?",
   "o": [
     [
-      "Add 'think step by step' to the end of every user message sent by the agronomy app.",
-      "A generic phrase is weaker than real extended reasoning, and it doesn't address the multi-factor pattern specifically."
+      "Approve it now, because a higher tier will be at least as accurate and the extra cost can always be cut back later if needed.",
+      "A higher tier isn't automatically better for this workload, and it changes cost and latency. The change would go out with no definition of better and no way to tell it failed."
     ],
     [
-      "Use adaptive thinking with a higher effort setting, and evaluate multi-factor cases separately.",
-      "Correct. Current models use adaptive thinking controlled by effort rather than a fixed token budget, and a targeted eval shows whether the hard cases improve."
+      "Send a small slice of live traffic to Opus 5.5 for a week, and keep the change if nobody complains about the answers it gives.",
+      "Absence of complaints is not a criterion. Without an eval set and a decision rule set in advance, any result can be read as a win."
     ],
     [
-      "Keep budget_tokens but raise it to 64,000 so the model has room to consider multiple causes for each case.",
-      "Fixed thinking budgets are not how current models configure extended reasoning; adaptive thinking with effort replaces them."
+      "Refuse any change and keep Sonnet 5.5 for the life of the project, since it already meets its targets.",
+      "Sonnet is the default starting tier, not a permanent decision. A swap that passes the same gate as any other release can be the right call."
     ],
     [
-      "Prefill the response with 'Let me consider several possible causes:' to force multi-cause reasoning.",
-      "Assistant prefill is rejected on current models, and it wouldn't guarantee correct multi-cause diagnosis anyway."
+      "An eval set that defines better and a rollback criterion agreed before the swap, with both models scored against them.",
+      "Correct. Moving between tiers is a deliberate decision that needs the same gate any other release gets: evals that define better and a rollback criterion set before the swap, not after."
     ]
   ],
   "a": [
-    1
+    3
   ],
-  "why": "On current models, extended reasoning is adaptive thinking plus effort. Pair the config change with an eval slice for the failing case type so the improvement is measured."
+  "why": "Start with Sonnet as the default tier, and treat every model swap as a release. Define better with an eval set, set the rollback criterion before the change, and compare the candidate against the current model on cost, latency and quality rather than on a vendor claim."
 },
 {
   "id": "p3-18",
@@ -840,30 +840,30 @@ MOCK.certs.ccarp.exams[3].push(
 {
   "id": "p3-30",
   "d": 3,
-  "s": "Apply retrieval strategies matched to data shape and query pattern",
-  "stem": "An agricultural supplier's assistant answers questions over 12,000 product labels and agronomy guides. Growers ask both exact queries ('EPA Reg. No. 100-1234 re-entry interval') and conceptual ones ('what can I use for aphids on canola close to harvest?'). Pure vector search misses most exact-code queries. Which retrieval approach fits?",
+  "s": "Analyze authentication and authorization requirements to identify security gaps",
+  "stem": "An HR assistant's web app sends each question with an `employee_id` value inside the user message, and the system prompt says to answer only about that employee. In a penetration test, a tester changes the value and receives another employee's pay details. Which fix addresses the gap?",
   "o": [
     [
-      "Add instructions telling growers to always phrase questions conceptually instead of using registration numbers.",
-      "Changing user behavior to fit a retrieval limitation shifts the problem onto users, and exact codes are how labels are identified."
+      "Add a stronger system-prompt instruction to ignore any employee ID that the user appears to have edited, before answering any question.",
+      "An instruction isn't enforcement, and the model can't tell an edited value from a genuine one. The field is still manipulable."
     ],
     [
-      "Fine-tune the embedding model so registration numbers get distinctive vectors.",
-      "Embeddings are inherently weak at exact-string matching; tuning may help marginally but keyword search solves it directly."
+      "Run a model-based classifier on every incoming message to flag attempts to tamper with the ID before the message reaches the model.",
+      "A classifier may catch some attempts, but the identity still comes from a field the user controls. The gap is where the identity originates."
     ],
     [
-      "Hybrid retrieval: keyword search for codes and IDs plus vector search for meaning, merged and reranked.",
-      "Correct. Exact identifiers need lexical matching, conceptual questions need semantic matching, and reranking merges both into one relevant list."
+      "Take identity from the authenticated SSO session on the server, inject it there, and let the HR system's own authorization apply.",
+      "Correct. Identity passed as a raw field in the user message is manipulable. Server-side injection removes that risk, and the underlying system's authorization model must also govern the Claude layer."
     ],
     [
-      "Replace vector search with keyword search everywhere, since exact codes are the queries that are currently failing.",
-      "Keyword search alone would break the conceptual questions that vector search handles well today."
+      "Hide the `employee_id` field in the page so users can't see or edit it.",
+      "Hiding a field in the client doesn't stop a user from sending a crafted request. The value still arrives from the client."
     ]
   ],
   "a": [
     2
   ],
-  "why": "Mixed query patterns call for hybrid retrieval. Lexical search excels at exact tokens; semantic search excels at meaning; a reranker combines them."
+  "why": "Identity must come from the authenticated session on the server and be injected into the prompt and tool calls there, not passed as a field in the user message. The authorization model of the underlying system should also govern what the Claude layer can reach. Prompt instructions and classifiers are not access control."
 },
 {
   "id": "p3-31",
@@ -952,30 +952,30 @@ MOCK.certs.ccarp.exams[3].push(
 {
   "id": "p3-34",
   "d": 4,
-  "s": "Conduct A/B testing and iterative improvements",
-  "stem": "A hotel chain tests a new booking-assistant prompt that suggests room upgrades. After four days, variant B shows a 9% higher upgrade revenue per conversation. Marketing wants to ship it today. What should the architect check before calling the result?",
+  "s": "Optimize token usage, latency, and cost-performance trade-offs",
+  "stem": "A hotel chain's booking assistant meets its targets: p95 latency is within budget at 3.2 seconds against 4, and cost per conversation is within budget. The product owner asks which single setting the team should protect, because someone has proposed raising the reasoning effort to improve answer quality. What should the architect say?",
   "o": [
     [
-      "Whether variant B's prompt is shorter, since shorter prompts are cheaper and would justify shipping on cost alone.",
-      "Prompt length is a minor cost factor and says nothing about whether the observed lift is real or harmful."
+      "No setting needs special attention, because both readouts are within budget and any setting can be changed freely without affecting either budget.",
+      "Being within budget today doesn't make every setting safe to relax. Some settings drive the binding constraint, and changing them can breach a budget."
     ],
     [
-      "Whether the team can roll B out to all properties at once so the revenue gain is captured before the next quarter starts.",
-      "Rollout speed matters only after the result is trustworthy. Shipping on an unvalidated lift risks a costly reversal."
+      "Call volume, because it is the one input the team can't change.",
+      "Volume matters for the estimate, but the question is which control, if relaxed, would breach a budget first."
     ],
     [
-      "Whether the lift is significant at the planned sample size, outlasts novelty, and leaves complaints flat.",
-      "Correct. Four days can reflect noise or novelty, and a revenue gain that raises complaints or abandoned bookings isn't a win. Guardrail metrics must hold too."
+      "The setting behind the tightest budget, here effort and model tier for latency, because relaxing it would breach that budget first.",
+      "Correct. The load-bearing control is the one tied to whichever budget is binding. With latency the tight constraint, the model tier and the effort setting are load-bearing, and naming them makes the configuration defensible rather than lucky."
     ],
     [
-      "Whether the LLM judge rates variant B's responses as more helpful than variant A's on a sample of transcripts.",
-      "Judge preference doesn't validate a revenue result or reveal whether guests are being pushed too hard."
+      "The prompt length, because shorter prompts always make every budget easier to meet, whichever of the budgets is the tight one.",
+      "Prompt length can affect cost and latency, but it isn't the control tied to the binding budget in this scenario."
     ]
   ],
   "a": [
     2
   ],
-  "why": "A/B results need adequate sample size, enough duration to pass novelty effects, and guardrail metrics that catch harm the primary metric hides."
+  "why": "Once a configuration is within budget on both latency and cost, ask which single setting, if relaxed, would breach a budget first. That load-bearing control belongs to the dominant constraint: model tier or effort for latency, tier and context strategy for cost."
 },
 {
   "id": "p3-35",
@@ -1153,30 +1153,30 @@ MOCK.certs.ccarp.exams[3].push(
 {
   "id": "p3-41",
   "d": 4,
-  "s": "Conduct A/B testing and iterative improvements",
-  "stem": "A food-bank network's volunteer-scheduling assistant ignores the rule 'never schedule minors for warehouse forklift shifts' in about 1 of 20 test conversations. A developer wants to move to Opus 5.5. Transcript review shows the rule sits in paragraph 14 of a 3,000-word system prompt, mixed in with tone guidance. What should the architect do first?",
+  "s": "Diagnose system issues (prompt failure, hallucinations, model mismatch)",
+  "stem": "A freight broker asks whether Claude can reconcile carrier invoices against rate confirmations and flag mismatches over a set tolerance. The architect reviews the use case against the four AI properties before answering. Matching text between documents is reliable, but the tolerance check requires exact arithmetic on many line items. Which verdict and condition should the architect record?",
   "o": [
     [
-      "Add a post-processing step where a second model call reviews each proposed schedule for policy violations.",
-      "A second probabilistic check adds cost and can also miss violations. Age eligibility is a data check code can do exactly."
+      "Feasible as scoped: Claude handles the reconciliation end to end, with a prompt that spells out each of the arithmetic steps in order.",
+      "Precise computation is a limitation of the model, and a prompt doesn't make it deterministic. The verdict ignores the boundary condition."
     ],
     [
-      "Enforce the age rule in the scheduling tool's code, move it out of the tone guidance, and re-run the eval to compare.",
-      "Correct. A safety rule about minors should be enforced deterministically, and a clearer prompt plus an eval re-run shows whether a model change is even needed."
+      "Not feasible: any task involving arithmetic should be excluded from Claude.",
+      "Too blunt. Claude is useful for the matching and the explanation, and the constraint applies to the computation, not the whole use case."
     ],
     [
-      "Move to Opus 5.5 as proposed, since a stronger model is more likely to notice and follow the buried rule.",
-      "This may reduce the failure rate but leaves a safety rule unenforced, and it changes the model before fixing the evident prompt problem."
+      "Feasible with constraints: Claude matches and explains, and deterministic computation owns the tolerance arithmetic as the boundary.",
+      "Correct. A constrained verdict names the condition it depends on. Here, high-stakes numerical accuracy is owned by deterministic computation or tool execution rather than by the model's output."
     ],
     [
-      "Repeat the rule in capital letters at the top, middle and end of the system prompt so it can't be missed.",
-      "Repetition might help, but the rule still isn't guaranteed, and the eval should decide which prompt change works."
+      "Feasible with constraints: add a second Claude pass to check the first pass's arithmetic and flag any disagreements it finds.",
+      "A second pass from the same model doesn't make arithmetic deterministic, and it doesn't name a boundary a reviewer can verify."
     ]
   ],
   "a": [
-    1
+    2
   ],
-  "why": "Iterate cheaply and measurably: fix the evident cause, enforce hard rules in code, and compare against the baseline eval before reaching for a bigger model."
+  "why": "Run each new use case through the four AI properties, then state the verdict as feasible as scoped, feasible with constraints, or not feasible. For a constrained verdict, document the load-bearing boundary condition. Here steerability's limit on precise computation moves the arithmetic to deterministic computation or tool execution."
 },
 {
   "id": "p3-42",
@@ -1209,30 +1209,30 @@ MOCK.certs.ccarp.exams[3].push(
 {
   "id": "p3-43",
   "d": 5,
-  "s": "Implement guardrails and safety controls",
-  "stem": "A game studio wants a Claude-powered in-game companion that chats with players. The game is rated for ages 10+, and the studio must meet children's privacy and safety obligations. Which guardrail design is most appropriate?",
+  "s": "Address ethical AI considerations (bias, fairness, transparency)",
+  "stem": "A lender's loan-intake assistant summarizes applications and recommends manual review or fast-track. An audit finds that applicants from certain neighborhoods are sent to manual review more often. The vendor-management lead says fairness is the model provider's responsibility. What should the architect do?",
   "o": [
     [
-      "A detailed system prompt telling the companion to be child-friendly and refuse inappropriate topics, plus a larger model.",
-      "Prompt guidance is a layer, not a guarantee; a determined player can push past it, and a bigger model doesn't change that."
+      "Accept that it is the provider's responsibility, and ask the provider for a written statement on its bias testing and the results.",
+      "Treating fairness as the vendor's job leaves the points the lender controls unmonitored, and a statement doesn't explain this audit result."
     ],
     [
-      "Let players chat freely and rely on a report button so other players can flag inappropriate companion responses.",
-      "Reactive reporting only works after a child has already seen harmful content."
+      "Inspect the four points the lender controls (corpus, prompt framing, examples, routing) and log every decision to compare groups.",
+      "Correct. Unequal outcomes enter at identifiable points in the system. Each is an injection point that can be inspected, and decision logging is what lets users, regulators and the team reconstruct a decision."
     ],
     [
-      "Log all companion conversations with player IDs indefinitely so the studio can investigate any safety incident.",
-      "Indefinite retention of children's conversations increases privacy risk and does nothing to prevent incidents."
+      "Switch to a larger model, since bigger models are less biased and will treat applicants from every neighborhood the same way.",
+      "A larger model doesn't address skew in the corpus, examples, prompt framing or routing, which are the points the lender controls."
     ],
     [
-      "Age-aware settings, input and output moderation, no free-form personal-data collection, and parent-visible controls.",
-      "Correct. Multiple layers in code and product design protect young players, limit personal data and give parents control, without relying on the prompt alone."
+      "Tell the model in the system prompt to treat every applicant equally, whatever neighborhood they come from or how they applied.",
+      "An instruction doesn't show where the disparity enters, and nothing in it can be audited."
     ]
   ],
   "a": [
-    3
+    1
   ],
-  "why": "Safety for vulnerable users needs layered, deterministic controls: moderation on both sides, data minimization, and product-level controls, with the prompt as one layer among several."
+  "why": "Fairness is an architectural property that enters at identifiable points: the retrieval corpus, the framing of the prompt, the few-shot examples and the downstream routing. Instrument those points and log every decision, because if you can't reconstruct an explanation you can't reliably provide one."
 },
 {
   "id": "p3-44",
@@ -1410,30 +1410,30 @@ MOCK.certs.ccarp.exams[3].push(
 {
   "id": "p3-50",
   "d": 5,
-  "s": "Identify risks, limitations, and failure modes of LLM systems",
-  "stem": "A cybersecurity vendor's analyst agent reads raw firewall logs, phishing emails and malware strings to explain incidents. It can also open tickets and run containment scripts. Red-teamers embed text in a phishing email that leads the agent to close an open incident ticket. What does this reveal, and what is the main mitigation?",
+  "s": "Implement guardrails and safety controls",
+  "stem": "A security vendor's analyst agent sends incident summaries to customers after a screening model checks them for leaked credentials and customer data. During a load spike the screening service times out, and the gateway is configured to deliver the summary unscreened so that customers aren't kept waiting. What should the architect change?",
   "o": [
     [
-      "The phishing email was unusually crafted; adding it to a blocklist of known malicious messages will prevent repeats.",
-      "Attackers will rephrase. A blocklist addresses this instance, not the failure mode."
+      "Keep delivering unscreened but write each bypassed summary to a log for later review.",
+      "Logging after delivery doesn't undo a leak. A guardrail that passes traffic when it errors gives the appearance of protection without the function."
     ],
     [
-      "Logs and emails should be summarized by a separate model before the agent reads them, removing any instructions.",
-      "A summarizer can be injected too and may pass the instruction along; the agent's actions still lack a gate."
+      "Have the gateway fail closed: hold summaries until screening is healthy, and alert the on-call team.",
+      "Correct. For a safety control where a wrong pass causes harm, the deliberate choice is to fail closed, so an error in the guardrail blocks traffic rather than silently passing it."
     ],
     [
-      "Data the agent reads can act as instructions; keep untrusted content away from action tools and gate ticket and containment actions in code.",
-      "Correct. Indirect prompt injection is inherent when agents read attacker-controlled data. Separate analysis from action and put deterministic gates on ticket and containment actions."
+      "Retry the screening call indefinitely, so the summary is released only after a successful screen.",
+      "Unbounded retries can pile up during the spike and still give the customer and the team no defined behavior."
     ],
     [
-      "The model is too small to tell instructions from data; moving to Opus 5.5 would prevent this kind of manipulation.",
-      "Larger models can still be manipulated. Injection is a design risk, not a model-size bug."
+      "Remove the screening step, because the model's trained behavior already avoids disclosing sensitive data.",
+      "Trained behavior doesn't know this vendor's data rules, so removing the screen would leave the deployment-specific requirement unenforced."
     ]
   ],
   "a": [
-    2
+    1
   ],
-  "why": "Any content the model reads can steer it. When agents process untrusted data, separate reading from acting and enforce action controls outside the model."
+  "why": "Fail open passes traffic through unscreened when a guardrail errors, and fail closed blocks until the control is healthy. For safety controls where a wrong pass causes harm, fail closed. A control that silently passes traffic offers no protection."
 },
 {
   "id": "p3-51",
@@ -1583,30 +1583,31 @@ MOCK.certs.ccarp.exams[3].push(
 {
   "id": "p3-56",
   "d": 6,
-  "s": "Support lifecycle phases (discovery, design, handoff, monitoring, iteration)",
-  "stem": "An automotive OEM's innovation lab ran a successful pilot of a Claude service-scheduling assistant at five dealerships. The lab is disbanding next month, and a production engineering team that wasn't involved in discovery will design and build the full rollout. What is most important to transfer before the lab disbands?",
+  "s": "Document architectures and provide implementation guidance",
+  "stem": "An automotive OEM's innovation lab piloted a Claude service-scheduling assistant at five dealerships, with a result of 'faster scheduling'. The lab is disbanding next month, and the company wants to expand to 80 dealerships. Which TWO items in the outcome document do the most to make the result auditable and the expansion justifiable?",
   "o": [
     [
-      "Written requirements and acceptance criteria, the pilot eval set and baselines, open decisions, and named owners.",
-      "Correct. The new team needs what discovery learned, the evidence of what 'working' means, and clear ownership. Otherwise they repeat discovery or build on assumptions."
+      "Quotes from the five dealership managers about how much they liked the assistant.",
+      "Quotes are supportive but don't make a before-and-after comparison auditable."
     ],
     [
-      "The pilot's code repository and a recorded demo, since working software shows the new team what to build.",
-      "Pilot code shows one implementation, not the requirements, dealer constraints or the evidence behind them."
+      "Screenshots of the best week on the pilot dashboard, with the weekly numbers highlighted.",
+      "A best-week screenshot is asserted rather than audited, and it says nothing about the starting point."
     ],
     [
-      "Nothing formal; the production team should run discovery again so they fully own the requirements.",
-      "Throwing away completed discovery wastes time and annoys the dealers who already took part."
+      "The metric before the pilot and the same metric after, measured under the same definition, with the control that makes the comparison auditable.",
+      "Correct. A before-and-after comparison is only credible if both are measured the same way and something shows it can be checked rather than merely asserted."
     ],
     [
-      "Keep two lab members on call to the production team for the next year to answer questions as they come up.",
-      "Relying on people instead of documented requirements and evals breaks down as soon as they move on."
+      "A named owner for ongoing measurement once the engagement closes.",
+      "Correct. The lab is disbanding, so without a measurement owner nobody will keep producing the metric that justifies, or later questions, the expansion."
     ]
   ],
   "a": [
-    0
+    2,
+    3
   ],
-  "why": "Phase transitions lose knowledge unless it is written down. Hand over requirements, acceptance criteria, evals with baselines, open decisions and owners, not just code."
+  "why": "A customer outcome document records the use case with its scope boundary, the metric before, the metric after under the same definition, the control that makes the comparison auditable, the measurement owner after the engagement closes, and the reuse potential. Those elements turn a pilot claim into evidence."
 },
 {
   "id": "p3-57",
@@ -1724,62 +1725,58 @@ MOCK.certs.ccarp.exams[3].push(
   "id": "p3-61",
   "d": 7,
   "s": "Improve developer workflows using AI-assisted tooling",
-  "stem": "A game studio's rendering team uses Claude Code daily. Every session, engineers re-explain the engine's shader conventions and build commands, and they repeatedly type the same multi-step prompt to port shaders between graphics APIs. Which TWO changes would most improve their workflow?",
+  "stem": "A game studio's team merged AI-generated code that passed its tests. A week later an incident revealed that the function built a database query from user input, and nobody on the team could explain how it worked. What should the architect put in place?",
   "o": [
     [
-      "Switch the team to the largest available model so it can infer the engine's conventions without being told.",
-      "No model can infer house conventions it has never seen; the context has to be provided."
+      "A ban on AI-generated code in production repositories, so that every change is written and understood by a person on the team who owns it.",
+      "This gives up the productivity gain and doesn't address the underlying problem, which is the absence of a standard the code has to meet."
     ],
     [
-      "Turn off permission prompts entirely so sessions move faster when Claude runs the build and test commands.",
-      "Allowlisting specific safe commands reduces friction; disabling all prompts trades away safety for little gain."
+      "A second AI model that reviews every change, with its approval replacing human review to keep releases moving quickly.",
+      "A reviewer model may catch some problems, but removing the human leaves nobody who can explain what shipped."
     ],
     [
-      "Add a project CLAUDE.md with the shader conventions, build and test commands, and directory layout.",
-      "Correct. CLAUDE.md loads automatically into each session, so engineers stop re-explaining project conventions."
+      "A rule that any change with passing tests can be merged, since passing tests shows that the code works as intended.",
+      "The tests passed and the code still had a security flaw. Passing tests don't establish security or maintainability."
     ],
     [
-      "Turn the porting procedure into a shared custom slash command or Skill checked into the repo.",
-      "Correct. A shared, versioned command makes the repeated multi-step workflow one step and keeps it consistent across the team."
-    ],
-    [
-      "Have each engineer keep a personal text file of prompts and paste the relevant one at the start of each session.",
-      "Personal files drift apart and still need manual pasting; shared project configuration solves both."
+      "A verification checklist before production: correctness, security, maintainability, and an author who can explain what shipped.",
+      "Correct. AI-assisted work stays trustworthy when the code is held to correctness, security and maintainability standards and the author can explain it, captured as a checklist that gates before production."
     ]
   ],
   "a": [
-    2,
     3
   ],
-  "why": "Use project memory (CLAUDE.md) for persistent context and shared commands or Skills for repeated workflows, both checked into the repo so the whole team benefits."
+  "why": "Diligence keeps AI-assisted work trustworthy. Hold generated code to correctness, security and maintainability standards, and require that the author can explain what shipped. Capture this as a verification checklist that gates changes before production."
 },
 {
   "id": "p3-62",
   "d": 7,
   "s": "Support debugging and operational issue resolution",
-  "stem": "A construction-software company has an integration test for its bid-comparison service that fails about one run in ten in CI, never locally. An engineer asks Claude Code to 'fix the flaky test'. Its first attempt adds a retry decorator to the test. What should the engineer do instead?",
+  "stem": "After a handoff, a retailer's operations team pages the architect every week for the same three problems: rate-limit errors in the evening peak, stale answers after a document refresh, and a tool that times out. The architect wants the team to handle these without help. Which TWO deliverables achieve that?",
   "o": [
     [
-      "Ask Claude to delete the test, since a test that fails randomly gives no useful signal to the team.",
-      "Deleting the test removes coverage of whatever real problem it is intermittently catching."
+      "A runbook capturing each known symptom, its cause in the architecture, and the action to take.",
+      "Correct. A runbook records symptom-to-cause-to-action paths so the team can resolve recurring issues without the Architect."
     ],
     [
-      "Re-run the CI job until it passes, then merge, and open a ticket to look at the flakiness later.",
-      "This ships with an unexplained failure and usually means the ticket is never worked."
+      "More dashboards covering every metric, with the architect on call indefinitely.",
+      "Dashboards show symptoms, and indefinite on-call keeps the team dependent on the architect for the familiar problems."
     ],
     [
-      "Have Claude reproduce the failure, gather CI logs, list hypotheses, and test each before changing code.",
-      "Correct. Flaky tests usually hide a real ordering, timing or shared-state bug. A reproduce-hypothesize-verify loop finds the cause instead of masking it."
+      "A named escalation path that says who handles what, and when an issue leaves the team.",
+      "Correct. A defined escalation path means the architect is needed for the new problem, not the familiar ones, and everyone knows where an issue goes next."
     ],
     [
-      "Accept the retry decorator, since the test passes reliably with it and the team can move on to other work.",
-      "Retries hide the intermittent failure, which may reflect a real bug that customers will also hit."
+      "A one-off training session on how the model works, recorded for new staff.",
+      "General background on the model doesn't tell the team what to do when a specific known symptom appears."
     ]
   ],
   "a": [
+    0,
     2
   ],
-  "why": "Direct AI-assisted debugging toward root cause: reproduce, collect evidence, form and test hypotheses. Retries and deletions treat symptoms."
+  "why": "Operational support is translation plus self-sufficiency: connect symptoms to architecture causes, then leave behind runbooks and escalation paths so the team needs the Architect for the new problem, not the familiar one."
 },
 {
   "id": "p3-63",
