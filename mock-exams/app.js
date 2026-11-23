@@ -1,28 +1,27 @@
-// CCDV-F mock exam runner. Plain JS, no build step. Question data lives in data/*.js.
+// Mock exam runner for every certification registered in window.MOCK.certs. Plain JS, no build step.
+// Each cert's config lives in certs/<id>.js; its questions live in data/<id>/exam*.js.
 (function () {
   'use strict';
 
-  var DOMAINS = {
-    1: { name: 'Agents and Workflows', w: 14.7 },
-    2: { name: 'Applications and Integration', w: 33.1 },
-    3: { name: 'Claude Code', w: 3.1 },
-    4: { name: 'Eval, Testing, and Debugging', w: 2.6 },
-    5: { name: 'Model Selection and Optimization', w: 16.8 },
-    6: { name: 'Prompt and Context Engineering', w: 11.0 },
-    7: { name: 'Security and Safety', w: 8.1 },
-    8: { name: 'Tools and MCPs', w: 10.6 }
-  };
+  var CERTS = window.MOCK.certs;
+  var CERT_IDS = Object.keys(CERTS);
   var EXAMS = [1, 2, 3];
-  var TIME_MS = 120 * 60 * 1000;
-  var KEY = 'ccdvf-mock-v1';
   var LETTERS = 'ABCDEFGH';
-  var CUT = 720;
   var WEAK = 0.7;
 
-  var bank = window.CCDVF.exams;
+  // The active certification. render() switches it to match the URL hash.
+  var cert = CERT_IDS[0], C = CERTS[cert], DOMAINS = C.domains, bank = C.exams;
+  var states = {}, state = null;
   var app = document.getElementById('app');
-  var state = null;
-  var ui = { confirm: null, guide: { mode: 'all', domain: 0 }, guideOk: {}, jump: null, focus: null, scroll: false, copied: false, notice: null };
+  function use(id) {
+    cert = id; C = CERTS[id]; DOMAINS = C.domains; bank = C.exams;
+    state = states[id] || (states[id] = load(id));
+  }
+  function timeMs(c) { return (c || C).minutes * 60 * 1000; }
+  // Fewest correct answers that reach the cut on the linear estimate.
+  function passMark(c) { c = c || C; return Math.ceil(c.items * (c.cut - 100) / 900); }
+  function hasQuestions(c, n) { return (c || C).exams[n].length > 0; }
+  var ui ={ confirm: null, guide: { mode: 'all', domain: 0 }, guideOk: {}, jump: null, focus: null, scroll: false, copied: false, notice: null };
 
   // ---------- deterministic ordering (stable numbering across attempts and the guide) ----------
   function hash(str) {
@@ -45,12 +44,13 @@
   }
   var built = {};
   function exam(n) {
-    if (!built[n]) {
-      built[n] = shuffled(bank[n], 'ccdvf-exam-' + n).map(function (q, i) {
+    var key = cert + n;
+    if (!built[key]) {
+      built[key] = shuffled(bank[n], C.seedPrefix + n).map(function (q, i) {
         return { q: q, num: i + 1, order: shuffled(q.o.map(function (_, j) { return j; }), q.id) };
       });
     }
-    return built[n];
+    return built[key];
   }
   function letterOf(item, oi) { return LETTERS[item.order.indexOf(oi)]; }
   function lettersOf(item, arr) { return arr.map(function (oi) { return letterOf(item, oi); }).sort().join(', '); }
@@ -60,15 +60,20 @@
   }
 
   // ---------- storage (per-browser convenience; the page works without it) ----------
-  function blank() { return { status: 'new', answers: {}, flags: {}, remaining: TIME_MS, current: 0, result: null }; }
-  function load() {
-    var s = null;
-    try { s = JSON.parse(localStorage.getItem(KEY)); } catch (e) { s = null; }
+  // Each cert saves under its own key, so CCDV-F progress from before multi-cert support still loads.
+  function blank(c) { return { status: 'new', answers: {}, flags: {}, remaining: timeMs(c), current: 0, result: null }; }
+  function load(id) {
+    var c = CERTS[id], s = null;
+    try { s = JSON.parse(localStorage.getItem(c.storageKey)); } catch (e) { s = null; }
     if (!s || s.v !== 1 || !s.exams) s = { v: 1, exams: {} };
-    EXAMS.forEach(function (n) { if (!s.exams[n]) s.exams[n] = blank(); });
+    EXAMS.forEach(function (n) { if (!s.exams[n]) s.exams[n] = blank(c); });
     return s;
   }
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* storage unavailable */ } }
+  function save() {
+    Object.keys(states).forEach(function (id) {
+      try { localStorage.setItem(CERTS[id].storageKey, JSON.stringify(states[id])); } catch (e) { /* storage unavailable */ }
+    });
+  }
 
   // ---------- helpers ----------
   function esc(s) {
@@ -83,11 +88,10 @@
   function pct(c, t) { return t ? Math.round((c / t) * 100) : 0; }
   function scaled(c, t) { return Math.round(100 + 900 * (t ? c / t : 0)); }
   function answeredCount(n) { return Object.keys(state.exams[n].answers).length; }
-  function band(correct) {
-    if (correct >= 45) return { label: 'Strong', cls: 'ok', note: 'Comfortably above the estimated cut. Keep your weak domains warm and book the exam.' };
-    if (correct >= 40) return { label: 'Likely pass', cls: 'ok', note: 'Above the estimated cut with a small margin. Shore up any domain under 70%.' };
-    if (correct >= 37) return { label: 'Borderline', cls: 'flag', note: 'Right around the estimated cut. One bad day could tip it. Target your weakest domains first.' };
-    return { label: 'Not yet', cls: 'bad', note: 'Below the estimated cut. Work through the answer guide, then retake after studying.' };
+  function band(correct, c) {
+    var bands = (c || C).bands;
+    for (var i = 0; i < bands.length; i++) if (correct >= bands[i].min) return bands[i];
+    return bands[bands.length - 1];
   }
   function domainCounts(n) {
     var c = {};
@@ -96,11 +100,17 @@
   }
 
   // ---------- routing ----------
+  // #            → certification picker
+  // #ccarp       → that cert's exam list
+  // #ccarp/exam2 → exam, review, results or guide for one exam
+  var LEGACY = /^(exam|review|results|guide)([123])$/; // pre-multi-cert CCDV-F links
   function route() {
     var h = (location.hash || '').replace('#', '');
-    var m = /^(exam|review|results|guide)([123])$/.exec(h);
-    return m ? { view: m[1], n: +m[2] } : { view: 'home', n: 0 };
+    var m = /^([a-z0-9]+)(?:\/(exam|review|results|guide)([123]))?$/.exec(h);
+    if (m && CERTS[m[1]]) return m[2] ? { cert: m[1], view: m[2], n: +m[3] } : { cert: m[1], view: 'home', n: 0 };
+    return { cert: null, view: 'picker', n: 0 };
   }
+  function path(view, n) { return cert + (view ? '/' + view + n : ''); }
   function go(h) {
     ui.scroll = true;
     if ((location.hash || '').replace('#', '') === h) render();
@@ -112,8 +122,9 @@
   function startTimer(n) {
     if (tick) return;
     last = Date.now();
+    var st = state.exams[n];
     tick = setInterval(function () {
-      var st = state.exams[n], now = Date.now();
+      var now = Date.now();
       st.remaining = Math.max(0, st.remaining - (now - last));
       last = now;
       paintTimer(st.remaining);
@@ -139,11 +150,11 @@
       dom[it.q.d].t++;
       if (ok) dom[it.q.d].c++;
     });
-    st.result = { correct: correct, total: items.length, domains: dom, timedOut: !!timedOut, usedMs: TIME_MS - st.remaining, at: Date.now() };
+    st.result = { correct: correct, total: items.length, domains: dom, timedOut: !!timedOut, usedMs: timeMs() - st.remaining, at: Date.now() };
     st.status = 'submitted';
     ui.confirm = null;
     save();
-    go('results' + n);
+    go(path('results', n));
   }
 
   function pick(n, oi) {
@@ -165,30 +176,32 @@
   function act(a, d) {
     var r = route(), n = +(d.n || r.n), st = n ? state.exams[n] : null;
     switch (a) {
-      case 'home': go(''); break;
+      case 'home': go(cert); break;
+      case 'certs': go(''); break;
+      case 'cert': go(d.cert); break;
       case 'start':
-        state.exams[n] = blank(); state.exams[n].status = 'in_progress'; save(); go('exam' + n); break;
-      case 'resume': go('exam' + n); break;
-      case 'goto': st.current = +d.i; save(); if (r.view === 'exam') { ui.scroll = true; render(); } else go('exam' + n); break;
+        state.exams[n] = blank(); state.exams[n].status = 'in_progress'; save(); go(path('exam', n)); break;
+      case 'resume': go(path('exam', n)); break;
+      case 'goto': st.current = +d.i; save(); if (r.view === 'exam') { ui.scroll = true; render(); } else go(path('exam', n)); break;
       case 'prev': if (st.current > 0) { st.current--; save(); ui.scroll = true; render(); } break;
       case 'next':
-        if (st.current < exam(n).length - 1) { st.current++; save(); ui.scroll = true; render(); } else go('review' + n);
+        if (st.current < exam(n).length - 1) { st.current++; save(); ui.scroll = true; render(); } else go(path('review', n));
         break;
       case 'flag':
         var fid = exam(n)[st.current].q.id;
         if (st.flags[fid]) delete st.flags[fid]; else st.flags[fid] = true;
         save(); render(); break;
-      case 'to-review': go('review' + n); break;
-      case 'exit': stopTimer(); go(''); break;
+      case 'to-review': go(path('review', n)); break;
+      case 'exit': stopTimer(); go(cert); break;
       case 'ask': ui.confirm = d.what + '-' + n; render(); break;
       case 'cancel': ui.confirm = null; render(); break;
       case 'submit': submit(n, false); break;
-      case 'reset': stopTimer(); state.exams[n] = blank(); ui.confirm = null; save(); go(''); break;
-      case 'guide': go('guide' + n); break;
-      case 'guide-show': ui.guideOk[n] = true; render(); break;
+      case 'reset': stopTimer(); state.exams[n] = blank(); ui.confirm = null; save(); go(cert); break;
+      case 'guide': go(path('guide', n)); break;
+      case 'guide-show': ui.guideOk[cert + n] = true; render(); break;
       case 'guide-mode': ui.guide.mode = d.mode; render(); break;
-      case 'results': go('results' + n); break;
-      case 'jump': ui.guideOk[n] = true; ui.guide = { mode: 'all', domain: 0 }; ui.jump = +d.i; go('guide' + n); break;
+      case 'results': go(path('results', n)); break;
+      case 'jump': ui.guideOk[cert + n] = true; ui.guide = { mode: 'all', domain: 0 }; ui.jump = +d.i; go(path('guide', n)); break;
       case 'copy': copyResults(n); break;
     }
   }
@@ -204,11 +217,44 @@
   }
 
   // ---------- views ----------
+  function examStatus(c, st) {
+    if (st.status === 'submitted') return '<span class="mono">' + scaled(st.result.correct, st.result.total) + '</span> ' + band(st.result.correct, c).label;
+    if (st.status === 'in_progress') return 'in progress';
+    return 'not started';
+  }
+
+  function viewPicker() {
+    var cards = CERT_IDS.map(function (id) {
+      var c = CERTS[id], s = states[id] || (states[id] = load(id));
+      var ready = EXAMS.filter(function (n) { return hasQuestions(c, n); }).length;
+      var lines = EXAMS.map(function (n) {
+        return '<li>Exam ' + n + ': ' + (hasQuestions(c, n) ? examStatus(c, s.exams[n]) : '<span class="muted">coming soon</span>') + '</li>';
+      }).join('');
+      return '<article class="panel exam-card"><div class="row" style="justify-content:space-between"><span class="eyebrow">' + esc(c.code) + '</span>' +
+        '<span class="chip">' + ready + ' of ' + EXAMS.length + ' exams ready</span></div>' +
+        '<h2>' + esc(c.name) + '</h2><p class="muted">' + esc(c.blurb) + '</p>' +
+        '<p class="muted">' + c.items + ' questions · ' + c.minutes + ' minutes · pass ' + c.cut + ' · ' + Object.keys(c.domains).length + ' domains</p>' +
+        '<ul>' + lines + '</ul>' +
+        '<div class="actions"><button class="btn primary" data-act="cert" data-cert="' + id + '">Open ' + esc(c.code) + ' exams</button></div></article>';
+    }).join('');
+    return '<div class="wrap">' +
+      '<header class="masthead"><span class="eyebrow">Claude certification · practice</span>' +
+      '<h1>Claude Certification Mock Exams</h1>' +
+      '<p>Timed practice exams built from the public exam guides. Each exam matches its certification\'s real format and blueprint, and every answer comes with an explanation of why each option is right or wrong. Pick a certification to start.</p></header>' +
+      '<section class="exams">' + cards + '</section>' +
+      '<p class="muted" style="margin-top:28px;font-size:14px;max-width:72ch">Unofficial practice material. These are not questions from the real exams. Your answers and timers are saved in this browser only.</p>' +
+      '</div>';
+  }
+
   function viewHome() {
-    var counts = EXAMS.map(domainCounts);
+    var counts = EXAMS.map(domainCounts), ndom = Object.keys(DOMAINS).length;
     var cards = EXAMS.map(function (n) {
       var st = state.exams[n], chip, detail, actions;
-      if (st.status === 'submitted') {
+      if (!hasQuestions(C, n)) {
+        chip = '<span class="chip">Coming soon</span>';
+        detail = '<p class="muted">The questions for this exam haven\'t been written yet.</p>';
+        actions = '';
+      } else if (st.status === 'submitted') {
         var r = st.result, b = band(r.correct);
         chip = '<span class="chip ' + b.cls + '">' + b.label + '</span>';
         detail = '<p><span class="mono">' + scaled(r.correct, r.total) + '</span> estimated · ' + r.correct + ' of ' + r.total + ' correct</p>';
@@ -217,13 +263,13 @@
           '<button class="btn ghost danger" data-act="ask" data-what="reset" data-n="' + n + '">Retake</button>';
       } else if (st.status === 'in_progress') {
         chip = '<span class="chip live">In progress</span>';
-        detail = '<p>' + answeredCount(n) + ' of 53 answered · <span class="mono">' + clock(st.remaining) + '</span> left</p>';
+        detail = '<p>' + answeredCount(n) + ' of ' + bank[n].length + ' answered · <span class="mono">' + clock(st.remaining) + '</span> left</p>';
         actions = '<button class="btn primary" data-act="resume" data-n="' + n + '">Resume</button>' +
           '<button class="btn" data-act="guide" data-n="' + n + '">Answer guide</button>' +
           '<button class="btn ghost danger" data-act="ask" data-what="reset" data-n="' + n + '">Reset</button>';
       } else {
         chip = '<span class="chip">Not started</span>';
-        detail = '<p class="muted">53 questions · 120 minutes</p>';
+        detail = '<p class="muted">' + bank[n].length + ' questions · ' + C.minutes + ' minutes</p>';
         actions = '<button class="btn primary" data-act="start" data-n="' + n + '">Start exam</button>' +
           '<button class="btn" data-act="guide" data-n="' + n + '">Answer guide</button>';
       }
@@ -241,32 +287,34 @@
     }).join('');
 
     return '<div class="wrap">' +
-      '<header class="masthead"><span class="eyebrow">Claude Certified Developer – Foundations · practice</span>' +
-      '<h1>CCDV-F Mock Exams</h1>' +
-      '<p>Three timed practice exams built from the public CCDV-F exam guide. Each one matches the real format: 53 multiple-choice and multiple-response items in 120 minutes, spread across the eight domains by blueprint weight. Every answer comes with an explanation of why each option is right or wrong.</p>' +
-      '<div class="facts"><span><b>53</b> items</span><span><b>120</b> minutes</span><span>scaled <b>100–1,000</b></span><span>pass <b>720</b></span><span><b>8</b> domains</span></div></header>' +
+      '<div class="row"><button class="btn small ghost" data-act="certs">All certifications</button></div>' +
+      '<header class="masthead"><span class="eyebrow">' + esc(C.name) + ' · practice</span>' +
+      '<h1>' + esc(C.code) + ' Mock Exams</h1>' +
+      '<p>Three timed practice exams built from the public ' + esc(C.code) + ' exam guide. Each one matches the real format: ' + C.items + ' multiple-choice and multiple-response items in ' + C.minutes + ' minutes, spread across the ' + ndom + ' domains by blueprint weight. Every answer comes with an explanation of why each option is right or wrong.</p>' +
+      '<div class="facts"><span><b>' + C.items + '</b> items</span><span><b>' + C.minutes + '</b> minutes</span><span>scaled <b>100–1,000</b></span><span>pass <b>' + C.cut + '</b></span><span><b>' + ndom + '</b> domains</span></div></header>' +
       '<section class="exams">' + cards + '</section>' +
       '<h2 class="section-title">How each exam is built</h2>' +
       '<div class="table-wrap"><table><thead><tr><th>Domain</th><th class="num">Blueprint weight</th><th class="num">Items in exam 1 / 2 / 3</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<h2 class="section-title">Scoring rubric</h2>' + rubricHtml() +
-      '<p class="muted" style="margin-top:28px;font-size:14px;max-width:72ch">Unofficial practice material, written for study from the public CCDV-F exam guide (v1.0, July 2026). These are not questions from the real exam. Your answers and timer are saved in this browser only. The timer pauses when you choose Save and exit; the real exam does not pause.</p>' +
+      '<p class="muted" style="margin-top:28px;font-size:14px;max-width:72ch">Unofficial practice material, written for study from the public ' + esc(C.code) + ' exam guide (' + esc(C.guide) + '). These are not questions from the real exam. Your answers and timer are saved in this browser only. The timer pauses when you choose Save and exit; the real exam does not pause.</p>' +
       '</div>';
   }
 
   function rubricHtml() {
+    var N = C.items, pm = passMark(), cutPct = Math.round((C.cut - 100) / 9);
+    var bands = C.bands.map(function (b, i) {
+      var hi = i === 0 ? N : C.bands[i - 1].min - 1;
+      return '<div class="band"><span>' + esc(b.label) + '</span><span class="mono">' + b.min + '–' + hi + '</span></div>';
+    }).join('');
     return '<div class="rubric">' +
       '<div class="panel"><h3>How items are scored</h3><ul>' +
-      '<li>Each item is worth 1 point. 53 points in total.</li>' +
+      '<li>Each item is worth 1 point. ' + N + ' points in total.</li>' +
       '<li>Multiple-response items say how many to choose. You get the point only if you pick exactly the right set. No partial credit.</li>' +
       '<li>Unanswered items score 0. There is no penalty for guessing, so answer everything.</li></ul></div>' +
-      '<div class="panel"><h3>Estimated scaled score</h3><p>The real exam converts raw scores to a 100–1,000 scale with a cut of 720, and doesn\'t publish the conversion. This page estimates it linearly: <span class="mono">100 + 900 × (correct ÷ 53)</span>. On that estimate, 720 is about 69%, so <b>37 of 53</b> passes.</p></div>' +
-      '<div class="panel"><h3>Readiness bands</h3>' +
-      '<div class="band"><span>Strong</span><span class="mono">45–53</span></div>' +
-      '<div class="band"><span>Likely pass</span><span class="mono">40–44</span></div>' +
-      '<div class="band"><span>Borderline</span><span class="mono">37–39</span></div>' +
-      '<div class="band"><span>Not yet</span><span class="mono">0–36</span></div></div>' +
+      '<div class="panel"><h3>Estimated scaled score</h3><p>The real exam converts raw scores to a 100–1,000 scale with a cut of ' + C.cut + ', and doesn\'t publish the conversion. This page estimates it linearly: <span class="mono">100 + 900 × (correct ÷ ' + N + ')</span>. On that estimate, ' + C.cut + ' is about ' + cutPct + '%, so <b>' + pm + ' of ' + N + '</b> passes.</p></div>' +
+      '<div class="panel"><h3>Readiness bands</h3>' + bands + '</div>' +
       '<div class="panel"><h3>Using the score report</h3><ul>' +
-      '<li>Any domain under 70% is a study target. Weight your study by blueprint weight: domain 2 alone is a third of the exam.</li>' +
+      '<li>Any domain under 70% is a study target. ' + esc(C.studyTip) + '</li>' +
       '<li>Read the explanation for every missed and every flagged question, including the ones you guessed right.</li>' +
       '<li>Use "Copy results for Claude" and paste it into your Claude Code session to go through your misses together.</li></ul></div>' +
       '</div>';
@@ -302,7 +350,7 @@
   function topbar(n, label, frac) {
     var st = state.exams[n];
     return '<header class="topbar"><div class="topbar-inner">' +
-      '<div class="title"><span class="eyebrow">CCDV-F · Mock exam ' + n + '</span><strong>' + label + '</strong></div>' +
+      '<div class="title"><span class="eyebrow">' + C.code + ' · Mock exam ' + n + '</span><strong>' + label + '</strong></div>' +
       '<div class="row"><span id="timer" class="timer" aria-label="Time remaining">' + clock(st.remaining) + '</span>' +
       '<button class="btn small" data-act="to-review" data-n="' + n + '">Review and submit</button>' +
       '<button class="btn small ghost" data-act="exit" data-n="' + n + '">Save and exit</button></div>' +
@@ -316,7 +364,7 @@
       return '<button class="' + c + '" data-act="goto" data-n="' + n + '" data-i="' + i + '" aria-label="Question ' + it.num + (st.answers[it.q.id] ? ', answered' : ', not answered') + (st.flags[it.q.id] ? ', flagged' : '') + '">' + it.num + '</button>';
     }).join('');
     return '<aside class="' + (wide ? '' : 'rail ') + 'panel stack" aria-label="Question navigator">' +
-      '<div class="row" style="justify-content:space-between"><strong>Navigator</strong><span class="mono muted">' + done + '/53</span></div>' +
+      '<div class="row" style="justify-content:space-between"><strong>Navigator</strong><span class="mono muted">' + done + '/' + items.length + '</span></div>' +
       '<div class="legend"><span><i class="sw answered"></i>Answered</span><span><i class="sw"></i>Not answered</span><span><i class="sw flagged"></i>Flagged (' + flags + ')</span></div>' +
       '<div class="grid">' + cells + '</div></aside>';
   }
@@ -341,8 +389,8 @@
   function resultText(n) {
     var st = state.exams[n], r = st.result, items = exam(n), lines = [];
     var when = new Date(r.at);
-    lines.push('CCDV-F mock exam ' + n + ', submitted ' + when.toISOString().slice(0, 16).replace('T', ' ') + ' UTC');
-    lines.push('Score: ' + r.correct + '/' + r.total + ' correct (' + pct(r.correct, r.total) + '%), estimated scaled score ' + scaled(r.correct, r.total) + ' (cut ' + CUT + '), band: ' + band(r.correct).label);
+    lines.push(C.code + ' mock exam ' + n + ', submitted ' + when.toISOString().slice(0, 16).replace('T', ' ') + ' UTC');
+    lines.push('Score: ' + r.correct + '/' + r.total + ' correct (' + pct(r.correct, r.total) + '%), estimated scaled score ' + scaled(r.correct, r.total) + ' (cut ' + C.cut + '), band: ' + band(r.correct).label);
     lines.push('Time used: ' + clock(r.usedMs) + (r.timedOut ? ' (ran out of time)' : ''));
     lines.push('By domain:');
     Object.keys(DOMAINS).forEach(function (d) {
@@ -362,8 +410,8 @@
 
   function viewResults(n) {
     var st = state.exams[n], r = st.result, items = exam(n), sc = scaled(r.correct, r.total), b = band(r.correct);
-    var fillPct = ((sc - 100) / 900) * 100, cutPct = ((CUT - 100) / 900) * 100;
-    var pass = sc >= CUT;
+    var fillPct = ((sc - 100) / 900) * 100, cutPct = ((C.cut - 100) / 900) * 100;
+    var pass = sc >= C.cut;
     var drows = Object.keys(DOMAINS).map(function (d) {
       var x = r.domains[d] || { c: 0, t: 0 }, p = pct(x.c, x.t), weak = x.t && x.c / x.t < WEAK;
       return '<tr><td>' + d + '. ' + esc(DOMAINS[d].name) + (weak ? ' <span class="chip flag">Study</span>' : '') + '</td>' +
@@ -379,15 +427,15 @@
       ? '<div class="confirm"><p>Clear this score and start exam ' + n + ' again?</p><div class="row"><button class="btn small danger" data-act="reset" data-n="' + n + '">Yes, clear it</button><button class="btn small" data-act="cancel">Keep it</button></div></div>'
       : '';
     return '<div class="wrap stack">' +
-      '<div class="row" style="justify-content:space-between"><span class="eyebrow">CCDV-F · Mock exam ' + n + ' · score report</span><button class="btn small ghost" data-act="home">All exams</button></div>' +
+      '<div class="row" style="justify-content:space-between"><span class="eyebrow">' + C.code + ' · Mock exam ' + n + ' · score report</span><button class="btn small ghost" data-act="home">All exams</button></div>' +
       timeout +
       '<section class="panel score-head"><div class="stack" style="gap:8px">' +
       '<div class="big">' + sc + '</div><p class="muted">estimated scaled score (100–1,000)</p>' +
-      '<div class="row"><span class="chip ' + (pass ? 'ok' : 'bad') + '">' + (pass ? 'Above' : 'Below') + ' the 720 cut</span><span class="chip ' + b.cls + '">' + b.label + '</span></div>' +
+      '<div class="row"><span class="chip ' + (pass ? 'ok' : 'bad') + '">' + (pass ? 'Above' : 'Below') + ' the ' + C.cut + ' cut</span><span class="chip ' + b.cls + '">' + b.label + '</span></div>' +
       '<p><b>' + r.correct + ' of ' + r.total + '</b> correct (' + pct(r.correct, r.total) + '%) · time used <span class="mono">' + clock(r.usedMs) + '</span></p></div>' +
       '<div class="stack" style="gap:8px"><div class="scale" aria-hidden="true"><span class="end" style="left:0">100</span><span class="end" style="right:0">1,000</span>' +
       '<div class="track"><div class="fill" style="width:' + fillPct.toFixed(1) + '%"></div></div>' +
-      '<div class="cut" style="left:' + cutPct.toFixed(1) + '%"></div><span class="cut-label" style="left:' + cutPct.toFixed(1) + '%">pass 720</span></div>' +
+      '<div class="cut" style="left:' + cutPct.toFixed(1) + '%"></div><span class="cut-label" style="left:' + cutPct.toFixed(1) + '%">pass ' + C.cut + '</span></div>' +
       '<p class="muted" style="font-size:15px">' + esc(b.note) + '</p></div></section>' +
       '<h2 class="section-title" style="margin-top:12px">Percent correct by domain</h2>' +
       '<div class="table-wrap"><table><thead><tr><th>Domain</th><th class="num">Weight</th><th class="num">Correct</th><th class="num">%</th><th>Result</th></tr></thead><tbody>' + drows + '</tbody></table></div>' +
@@ -404,9 +452,9 @@
 
   function viewGuide(n) {
     var st = state.exams[n], items = exam(n), submitted = st.status === 'submitted';
-    var head = '<div class="row" style="justify-content:space-between"><span class="eyebrow">CCDV-F · Mock exam ' + n + ' · answer guide</span>' +
+    var head = '<div class="row" style="justify-content:space-between"><span class="eyebrow">' + C.code + ' · Mock exam ' + n + ' · answer guide</span>' +
       '<div class="row">' + (submitted ? '<button class="btn small" data-act="results" data-n="' + n + '">Score report</button>' : '') + '<button class="btn small ghost" data-act="home">All exams</button></div></div>';
-    if (!submitted && !ui.guideOk[n]) {
+    if (!submitted && !ui.guideOk[cert + n]) {
       return '<div class="wrap stack" style="max-width:760px">' + head +
         '<div class="panel stack"><h1 style="font-size:26px">Answers ahead</h1><p>This guide shows the correct answer and the reasoning for every question in exam ' + n + '. Take the exam first if you want an honest score.</p>' +
         '<div class="row"><button class="btn primary" data-act="' + (st.status === 'in_progress' ? 'resume' : 'start') + '" data-n="' + n + '">' + (st.status === 'in_progress' ? 'Resume exam' : 'Take the exam first') + '</button>' +
@@ -462,15 +510,24 @@
 
   // ---------- render ----------
   function render() {
-    var r = route(), html, st = r.n ? state.exams[r.n] : null;
-    if ((r.view === 'exam' || r.view === 'review') && st.status !== 'in_progress') r = st.status === 'submitted' ? { view: 'results', n: r.n } : { view: 'home', n: 0 };
-    if (r.view === 'results' && st && st.status !== 'submitted') r = { view: 'home', n: 0 };
-    if (r.view === 'home') html = viewHome();
-    else if (r.view === 'exam') html = viewExam(r.n);
-    else if (r.view === 'review') html = viewReview(r.n);
-    else if (r.view === 'results') html = viewResults(r.n);
-    else html = viewGuide(r.n);
-    if (r.view === 'exam' || r.view === 'review') startTimer(r.n); else stopTimer();
+    var r = route(), html;
+    if (r.view === 'picker') {
+      stopTimer();
+      html = viewPicker();
+    } else {
+      if (r.cert !== cert) stopTimer();
+      use(r.cert);
+      var st = r.n ? state.exams[r.n] : null;
+      if (st && !hasQuestions(C, r.n)) r = { cert: cert, view: 'home', n: 0 };
+      else if ((r.view === 'exam' || r.view === 'review') && st.status !== 'in_progress') r = st.status === 'submitted' ? { cert: cert, view: 'results', n: r.n } : { cert: cert, view: 'home', n: 0 };
+      else if (r.view === 'results' && st.status !== 'submitted') r = { cert: cert, view: 'home', n: 0 };
+      if (r.view === 'home') html = viewHome();
+      else if (r.view === 'exam') html = viewExam(r.n);
+      else if (r.view === 'review') html = viewReview(r.n);
+      else if (r.view === 'results') html = viewResults(r.n);
+      else html = viewGuide(r.n);
+      if (r.view === 'exam' || r.view === 'review') startTimer(r.n); else stopTimer();
+    }
     app.innerHTML = html;
     if (ui.jump) {
       var target = document.getElementById('g-' + ui.jump);
@@ -501,7 +558,11 @@
   }
 
   function start(data) {
-    state = data && data.state ? data.state : load();
+    states = data && data.states ? data.states : {};
+    var h = (location.hash || '').replace('#', '');
+    if (LEGACY.test(h)) {
+      try { history.replaceState(null, '', '#ccdvf/' + h); } catch (e) { location.hash = 'ccdvf/' + h; }
+    }
     app.addEventListener('click', function (e) {
       var b = e.target.closest('[data-act]');
       if (!b || b.disabled) return;
@@ -517,7 +578,7 @@
     document.addEventListener('visibilitychange', function () { if (document.hidden) save(); });
     window.addEventListener('pagehide', save);
     try {
-      if (window.claude && window.claude.hot && window.claude.hot.snapshot) window.claude.hot.snapshot(function () { return { state: state }; });
+      if (window.claude && window.claude.hot && window.claude.hot.snapshot) window.claude.hot.snapshot(function () { return { states: states }; });
     } catch (e) { /* hot reload unavailable */ }
     render();
   }

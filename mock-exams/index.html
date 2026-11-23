@@ -1,5 +1,7 @@
-<title>CCDV-F Mock Exams</title>
-<meta name="description" content="Three timed 53-question practice exams for Claude Certified Developer – Foundations, with score reports and answer guides.">
+<!doctype html>
+<meta charset="utf-8">
+<title>Claude Certification Mock Exams</title>
+<meta name="description" content="Timed practice exams for Claude Certified Developer – Foundations (CCDV-F) and Claude Certified Architect – Professional (CCAR-P), with score reports and answer guides.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
@@ -181,8 +183,13 @@ td.num, th.num { text-align: right; font-family: var(--font-mono); font-variant-
 
 <div id="app"></div>
 
-<script>window.CCDVF = { exams: { 1: [], 2: [], 3: [] } };</script>
-<script src="data/exam1.js"></script>
-<script src="data/exam2.js"></script>
-<script src="data/exam3.js"></script>
+<script>window.MOCK = { certs: {} };</script>
+<script src="certs/ccdvf.js"></script>
+<script src="certs/ccarp.js"></script>
+<script src="data/ccdvf/exam1.js"></script>
+<script src="data/ccdvf/exam2.js"></script>
+<script src="data/ccdvf/exam3.js"></script>
+<script src="data/ccarp/exam1.js"></script>
+<script src="data/ccarp/exam2.js"></script>
+<script src="data/ccarp/exam3.js"></script>
 <script src="app.js"></script>

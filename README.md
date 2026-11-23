@@ -6,7 +6,7 @@ Hands-on exercises for each area of the Claude architecture / developer foundati
 
 ## Quick start: mock exams
 
-Three timed CCDV-F practice exams live in [`mock-exams/`](mock-exams/). They're static HTML, so you don't need Go, an API key or a server:
+Timed practice exams for CCDV-F (Developer – Foundations) and CCAR-P (Architect – Professional) live in [`mock-exams/`](mock-exams/), three of each. They're static HTML, so you don't need Go, an API key or a server:
 
 ```bash
 git clone <repo-url>

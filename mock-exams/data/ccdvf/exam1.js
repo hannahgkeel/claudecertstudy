@@ -1,5 +1,5 @@
 // Mock exam 1. Question format: see mock-exams/README.md.
-CCDVF.exams[1].push(
+MOCK.certs.ccdvf.exams[1].push(
 {
   "id": "e1-01",
   "d": 1,
