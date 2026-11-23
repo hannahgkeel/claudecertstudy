@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "incident-tracker": {
+      "command": "incident-tracker-mcp",
+      "args": ["--read-only"],
+      "env": {
+        "TRACKER_TOKEN": "${TRACKER_TOKEN}"
+      }
+    }
+  }
+}
