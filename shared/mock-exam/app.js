@@ -16,6 +16,8 @@
   var ITEMS = CFG.items;
   var PASS = Math.ceil(ITEMS * (CUT - 100) / 900); // raw score that reaches 720 on the linear estimate
   var BANDS = CFG.bands; // minimum raw scores for Strong / Likely pass / Borderline
+  var NOTES = CFG.examNotes || {}; // optional line under an exam's title, e.g. who wrote it
+  var WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
 
   var bank = CFG.exams;
   var app = document.getElementById('app');
@@ -96,7 +98,7 @@
   // ---------- routing ----------
   function route() {
     var h = (location.hash || '').replace('#', '');
-    var m = /^(exam|review|results|guide)([123])$/.exec(h);
+    var m = /^(exam|review|results|guide)([1-9])$/.exec(h);
     return m ? { view: m[1], n: +m[2] } : { view: 'home', n: 0 };
   }
   function go(h) {
@@ -230,7 +232,7 @@
           '<div class="row"><button class="btn small danger" data-act="reset" data-n="' + n + '">Yes, clear it</button><button class="btn small" data-act="cancel">Keep it</button></div></div>'
         : '';
       return '<article class="panel exam-card"><div class="row" style="justify-content:space-between"><span class="eyebrow">Mock exam ' + n + '</span>' + chip + '</div>' +
-        '<h2>Exam ' + n + '</h2>' + detail + confirm + '<div class="actions">' + actions + '</div></article>';
+        '<h2>Exam ' + n + '</h2>' + (NOTES[n] ? '<p class="muted" style="font-size:14px">' + esc(NOTES[n]) + '</p>' : '') + detail + confirm + '<div class="actions">' + actions + '</div></article>';
     }).join('');
 
     var rows = Object.keys(DOMAINS).map(function (d) {
@@ -242,11 +244,11 @@
     return '<div class="wrap">' +
       '<header class="masthead"><span class="eyebrow">' + esc(CFG.name) + ' · practice</span>' +
       '<h1>' + CODE + ' Mock Exams</h1>' +
-      '<p>Three timed practice exams built from the public ' + CODE + ' exam guide. Each one matches the real format: ' + ITEMS + ' multiple-choice and multiple-response items in ' + CFG.minutes + ' minutes, spread across the ' + nd + ' domains by blueprint weight. Every answer comes with an explanation of why each option is right or wrong.</p>' +
+      '<p>' + WORDS[EXAMS.length] + ' timed practice exams built from the public ' + CODE + ' exam guide. Each one matches the real format: ' + ITEMS + ' multiple-choice and multiple-response items in ' + CFG.minutes + ' minutes, spread across the ' + nd + ' domains by blueprint weight. Every answer comes with an explanation of why each option is right or wrong.</p>' +
       '<div class="facts"><span><b>' + ITEMS + '</b> items</span><span><b>' + CFG.minutes + '</b> minutes</span><span>scaled <b>100–1,000</b></span><span>pass <b>720</b></span><span><b>' + nd + '</b> domains</span></div></header>' +
       '<section class="exams">' + cards + '</section>' +
       '<h2 class="section-title">How each exam is built</h2>' +
-      '<div class="table-wrap"><table><thead><tr><th>Domain</th><th class="num">Blueprint weight</th><th class="num">Items in exam 1 / 2 / 3</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<div class="table-wrap"><table><thead><tr><th>Domain</th><th class="num">Blueprint weight</th><th class="num">Items in exam ' + EXAMS.join(' / ') + '</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<h2 class="section-title">Scoring rubric</h2>' + rubricHtml() +
       '<p class="muted" style="margin-top:28px;font-size:14px;max-width:72ch">Unofficial practice material, written for study from the public ' + CODE + ' exam guide (' + esc(CFG.guide) + '). These are not questions from the real exam. Your answers and timer are saved in this browser only. The timer pauses when you choose Save and exit; the real exam does not pause.</p>' +
       '</div>';

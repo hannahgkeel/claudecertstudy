@@ -1,11 +1,11 @@
 # Claude certification study lab (Go)
 
-Study material for two Claude certifications, one folder each. Every module has a runnable **exercise** with TODOs, a **solution**, and a **README** with concepts and exam-style questions (answers are collapsed). Each certification also has three timed mock exams.
+Study material for two Claude certifications, one folder each. Every module has a runnable **exercise** with TODOs, a **solution**, and a **README** with concepts and exam-style questions (answers are collapsed). Each certification also has timed mock exams.
 
 | Certification | Folder | Mock exams |
 |---|---|---|
 | Claude Certified Developer – Foundations (CCDV-F) | [`developer-foundations/`](developer-foundations/) | 3 × 53 questions |
-| Claude Certified Architect – Professional (CCAR-P) | [`architect-professional/`](architect-professional/) | 3 × 63 questions |
+| Claude Certified Architect – Professional (CCAR-P) | [`architect-professional/`](architect-professional/) | 6 × 63 questions |
 
 Both use one shared exam engine in [`shared/mock-exam/`](shared/mock-exam/) and the shared Claude client in [`internal/claude/`](internal/claude/).
 

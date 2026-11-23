@@ -1,6 +1,6 @@
 # CCAR-P mock exams
 
-Three timed practice exams for **Claude Certified Architect – Professional (CCAR-P)**, built from the public exam guide (v1.0, July 2026). These are unofficial study material, not questions from the real exam.
+Six timed practice exams for **Claude Certified Architect – Professional (CCAR-P)**, built from the public exam guide (v1.0, July 2026). These are unofficial study material, not questions from the real exam. Exams 4–6 were written by Chris Hanson.
 
 Each exam matches the real format: 63 multiple-choice and multiple-response items, 120 minutes, and items spread across the seven domains by blueprint weight:
 
@@ -30,6 +30,6 @@ Progress is saved in your browser's local storage, separately from the CCDV-F ex
 
 - `index.html`: the page, including the exam settings (`window.MOCK`: code, domains, bands, storage key)
 - `../../shared/mock-exam/app.js` and `exam.css`: the exam runner and styles, shared with the CCDV-F exams
-- `data/exam{1,2,3}.js`: the questions. Each item has an `id` (such as `p1-07`), domain `d`, skill `s`, `stem`, options `o` (each one a `[text, why it's right or wrong]` pair), the correct option indices `a`, and an explanation `why`. A stem that says TWO means two options are correct.
+- `data/exam{1..6}.js`: the questions. Each item has an `id` (such as `p1-07`; the number after `p` is the exam), domain `d`, skill `s`, `stem`, options `o` (each one a `[text, why it's right or wrong]` pair), the correct option indices `a`, and an explanation `why`. A stem that says TWO means two options are correct.
 
 The app shuffles question and option order deterministically, seeded from the exam number and question ID, so a question's number is stable across attempts, the answer guide and copied results, while the correct option's letter varies.

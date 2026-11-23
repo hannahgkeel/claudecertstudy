@@ -1,6 +1,6 @@
 # Claude Certified Architect – Professional (CCAR-P) study lab
 
-Hands-on modules for each domain of the CCAR-P exam guide (v1.0, July 2026), plus three timed mock exams. The scenarios are set at a fictional bank, Larkspur, because the exam's audience and examples lean toward regulated industries.
+Hands-on modules for each domain of the CCAR-P exam guide (v1.0, July 2026), plus six timed mock exams. The scenarios are set at a fictional bank, Larkspur, because the exam's audience and examples lean toward regulated industries.
 
 > These are unofficial study materials built from the public exam guide, not exam content. Check the blueprint against the current guide before you book; domains and weights can change between versions.
 
@@ -44,6 +44,6 @@ The live runs use `ANTHROPIC_API_KEY` and `claude-opus-5-5` (set in `internal/cl
 
 ## Mock exams
 
-Open [`mock-exams/index.html`](mock-exams/index.html) in a browser. Three 63-question exams, each with the blueprint's domain counts (11/8/12/10/9/9/4), a timer, a score report by domain, and an answer guide that explains every option. Use "Copy results for Claude" to go through your misses in a Claude Code session.
+Open [`mock-exams/index.html`](mock-exams/index.html) in a browser. Six 63-question exams (4–6 written by Chris Hanson), each with the blueprint's domain counts (11/8/12/10/9/9/4), a timer, a score report by domain, and an answer guide that explains every option. Use "Copy results for Claude" to go through your misses in a Claude Code session.
 
 **Jumping straight to Professional?** Take mock exam 1 cold, before studying. Any domain under 70% tells you which module to start with.
